@@ -1,3 +1,3 @@
-package com.second_year.finalproject.Api.Models
+package com.second_year.hkroadmap.Api.Models
 
 //data class Admin()

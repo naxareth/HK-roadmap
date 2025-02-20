@@ -1,4 +1,4 @@
-package com.second_year.finalproject.Api.Models
+package com.second_year.hkroadmap.Api.Models
 
 data class AdminRegisterRequest(val name: String, val email: String, val password: String, val confirm_password: String)
 data class AdminRegisterResponse(val message: String, val token: String?)

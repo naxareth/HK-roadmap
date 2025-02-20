@@ -59,7 +59,7 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <Button
-            android:id="@+id/buttonLogin"
+            android:id="@+id/btnLogin"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="LOGIN"
@@ -89,6 +89,14 @@
             android:textColor="@android:color/holo_red_dark"
             android:layout_marginTop="10dp"
             android:textSize="16sp" />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            android:indeterminateTint="@android:color/holo_green_dark"/>
 
     </LinearLayout>
 

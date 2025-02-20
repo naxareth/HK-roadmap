@@ -1,19 +1,19 @@
-package com.second_year.finalproject.Api.Interfaces
+package com.second_year.hkroadmap.Api.Interfaces
 
 
-import com.second_year.finalproject.Api.Models.AdminRegisterRequest
-import com.second_year.finalproject.Api.Models.AdminRegisterResponse
-import com.second_year.finalproject.Api.Models.EmailRequest
-import com.second_year.finalproject.Api.Models.LoginRequest
-import com.second_year.finalproject.Api.Models.LoginResponse
-import com.second_year.finalproject.Api.Models.LogoutResponse
-import com.second_year.finalproject.Api.Models.OtpResponse
-import com.second_year.finalproject.Api.Models.OtpVerificationRequest
-import com.second_year.finalproject.Api.Models.OtpVerificationResponse
-import com.second_year.finalproject.Api.Models.PasswordChangeRequest
-import com.second_year.finalproject.Api.Models.PasswordChangeResponse
-import com.second_year.finalproject.Api.Models.StudentRegisterRequest
-import com.second_year.finalproject.Api.Models.StudentRegisterResponse
+import com.second_year.hkroadmap.Api.Models.AdminRegisterRequest
+import com.second_year.hkroadmap.Api.Models.AdminRegisterResponse
+import com.second_year.hkroadmap.Api.Models.EmailRequest
+import com.second_year.hkroadmap.Api.Models.LoginRequest
+import com.second_year.hkroadmap.Api.Models.LoginResponse
+import com.second_year.hkroadmap.Api.Models.LogoutResponse
+import com.second_year.hkroadmap.Api.Models.OtpResponse
+import com.second_year.hkroadmap.Api.Models.OtpVerificationRequest
+import com.second_year.hkroadmap.Api.Models.OtpVerificationResponse
+import com.second_year.hkroadmap.Api.Models.PasswordChangeRequest
+import com.second_year.hkroadmap.Api.Models.PasswordChangeResponse
+import com.second_year.hkroadmap.Api.Models.StudentRegisterRequest
+import com.second_year.hkroadmap.Api.Models.StudentRegisterResponse
 import retrofit2.http.*
 
 interface ApiService {
@@ -41,7 +41,7 @@ interface ApiService {
     suspend fun studentRegister(@Body student: StudentRegisterRequest): StudentRegisterResponse
 
     @POST("student/login")
-    suspend fun studentLogin(@Body credentials: LoginRequest): LoginResponse
+    suspend fun studentLogin(@Body loginRequest: LoginRequest): LoginResponse
 
     @POST("student/logout")
     suspend fun studentLogout(@Header("Authorization") token: String): LogoutResponse
