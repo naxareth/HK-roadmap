@@ -1,58 +1,78 @@
 package com.second_year.hkroadmap.Api.Interfaces
 
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonDeserializer
-import com.second_year.hkroadmap.Api.Models.LoginResponse
+import android.util.Log
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.JavaNetCookieJar
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.net.CookieManager
+import java.net.CookiePolicy
 import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
     private const val BASE_URL = "http://192.168.0.12:8000/hk-roadmap/"
+    private const val TAG = "RetrofitInstance"
+    private const val TIMEOUT_SECONDS = 30L
+
+    private val cookieManager = CookieManager().apply {
+        setCookiePolicy(CookiePolicy.ACCEPT_ALL)
+    }
 
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(100, TimeUnit.SECONDS)
-        .readTimeout(100, TimeUnit.SECONDS)
-        .writeTimeout(100, TimeUnit.SECONDS)
-        .addInterceptor(logging)
-        .build()
+    private val networkInterceptor = HttpLoggingInterceptor { message ->
+        Log.d(TAG, "Network: $message")
+    }.apply {
+        level = HttpLoggingInterceptor.Level.BODY
+    }
 
-    private val gson = GsonBuilder()
-        .setLenient()
-        .registerTypeAdapter(LoginResponse::class.java, JsonDeserializer { json, _, _ ->
+    private val httpClient = OkHttpClient.Builder().apply {
+        connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        cookieJar(JavaNetCookieJar(cookieManager)) // Add this line
+        addInterceptor(logging)
+        addInterceptor(networkInterceptor)
+        addInterceptor { chain ->
+            val request = chain.request()
+
+            Log.d(TAG, """
+                Request Details:
+                URL: ${request.url}
+                Method: ${request.method}
+                Headers: ${request.headers}
+            """.trimIndent())
+
             try {
-                if (json.isJsonPrimitive) {
-                    // Handle string response (usually error messages)
-                    LoginResponse(message = json.asString, token = null)
-                } else {
-                    // Handle object response (successful login)
-                    val obj = json.asJsonObject
-                    LoginResponse(
-                        message = obj.get("message")?.asString ?: "",
-                        token = obj.get("token")?.asString
-                    )
+                val response = chain.proceed(request)
+
+                when (response.code) {
+                    in 200..299 -> Log.d(TAG, "Successful response: ${response.code}")
+                    in 400..499 -> Log.w(TAG, "Client error: ${response.code}")
+                    in 500..599 -> Log.e(TAG, "Server error: ${response.code}")
+                    else -> Log.w(TAG, "Unexpected response code: ${response.code}")
                 }
+
+                response.body?.let {
+                    Log.d(TAG, "Response body available")
+                } ?: Log.w(TAG, "Empty response body")
+
+                response
             } catch (e: Exception) {
-                // Fallback for unexpected response format
-                LoginResponse(
-                    message = "Error parsing response",
-                    token = null
-                )
+                Log.e(TAG, "Network error: ${e.message}", e)
+                throw e
             }
-        })
-        .create()
+        }
+    }.build()
 
     private val retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(httpClient)
-            .addConverterFactory(GsonConverterFactory.create(gson))
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 

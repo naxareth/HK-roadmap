@@ -6,26 +6,6 @@
     android:padding="24dp"
     android:background="@color/white">
 
-    <!-- Email Title -->
-
-    <!-- Email Input Field -->
-
-    <!-- Send OTP Button -->
-
-    <Button
-        android:id="@+id/btnSendOtp"
-        android:layout_width="0dp"
-        android:layout_height="50dp"
-        android:layout_marginTop="40dp"
-        android:backgroundTint="@android:color/holo_green_dark"
-        android:text="SEND OTP"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/etEmail" />
-
     <TextView
         android:id="@+id/tvEmailTitle"
         android:layout_width="wrap_content"
@@ -55,5 +35,30 @@
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvEmailTitle" />
+
+    <Button
+        android:id="@+id/btnSendOtp"
+        android:layout_width="0dp"
+        android:layout_height="50dp"
+        android:layout_marginTop="40dp"
+        android:backgroundTint="@android:color/holo_green_dark"
+        android:text="SEND OTP"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/etEmail" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:indeterminateTint="@android:color/holo_green_dark"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/btnSendOtp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

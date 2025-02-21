@@ -1,36 +1,73 @@
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+
     <LinearLayout
+        android:id="@+id/linearLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
         android:padding="24dp"
-        android:gravity="center_horizontal"
-        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.316">
+
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@mipmap/ic_launcher"
+            android:layout_gravity="left"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="LOGIN"
-            android:textSize="30sp"
+            android:layout_gravity="left"
+            android:text="HK Roadmap"
+            android:textSize="50sp"
             android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.223" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Track Your Tasks And Stay Updated"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:background="@android:color/holo_green_dark"
+            android:textColor="@color/white"
+            android:padding="10dp" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="70dp"
+            android:layout_marginBottom="40dp"
+            android:text="LOGIN"
             android:textColor="@android:color/black"
-            android:layout_marginBottom="20dp" />
+            android:textSize="30sp"
+            android:textStyle="bold" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="10dp"
-            app:boxStrokeWidth="1dp"
-            app:boxStrokeColor="@android:color/darker_gray">
+            app:boxStrokeColor="@android:color/darker_gray"
+            app:boxStrokeWidth="1dp">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etEmail"
@@ -45,8 +82,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="10dp"
-            app:boxStrokeWidth="1dp"
             app:boxStrokeColor="@android:color/darker_gray"
+            app:boxStrokeWidth="1dp"
             app:endIconMode="password_toggle">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -62,42 +99,51 @@
             android:id="@+id/btnLogin"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="LOGIN"
-            android:backgroundTint="@android:color/holo_green_dark"
-            android:textColor="@android:color/white"
             android:layout_marginTop="10dp"
-            android:padding="12dp" />
+            android:backgroundTint="@android:color/holo_green_dark"
+            android:padding="12dp"
+            android:text="LOGIN"
+            android:textColor="@android:color/white" />
 
         <TextView
             android:id="@+id/textViewSignUp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
             android:clickable="true"
             android:focusable="true"
             android:text="Not registered? Sign up"
             android:textColor="@android:color/holo_blue_dark"
-            android:layout_marginTop="10dp"
             android:textSize="16sp" />
 
         <TextView
             android:id="@+id/textViewForgotPassword"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
             android:clickable="true"
             android:focusable="true"
             android:text="Forgot Password?"
             android:textColor="@android:color/holo_red_dark"
-            android:layout_marginTop="10dp"
             android:textSize="16sp" />
+
+
 
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:visibility="gone"
-            android:indeterminateTint="@android:color/holo_green_dark"/>
+            android:indeterminateTint="@android:color/holo_green_dark"
+            android:visibility="gone" />
 
     </LinearLayout>
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_begin="205dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

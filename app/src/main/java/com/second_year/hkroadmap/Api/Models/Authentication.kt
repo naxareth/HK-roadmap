@@ -14,8 +14,14 @@ data class LogoutResponse(val message: String)
 data class EmailRequest(val email: String)
 data class OtpResponse(val message: String)
 
-data class OtpVerificationRequest(val email: String, val otp: String)
-data class OtpVerificationResponse(val message: String)
+data class OtpVerificationRequest(
+    val email: String,
+    val otp: String
+)
+
+data class OtpVerificationResponse(
+    val message: String,
+)
 
 data class PasswordChangeRequest(val email: String, val new_password: String)
 data class PasswordChangeResponse(val message: String)

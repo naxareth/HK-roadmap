@@ -15,4 +15,9 @@ object TokenManager {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getString(TOKEN_KEY, null)
     }
+
+    fun clearToken(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().remove(TOKEN_KEY).apply()
+    }
 }

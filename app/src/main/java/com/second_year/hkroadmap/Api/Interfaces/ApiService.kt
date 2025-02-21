@@ -46,12 +46,14 @@ interface ApiService {
     @POST("student/logout")
     suspend fun studentLogout(@Header("Authorization") token: String): LogoutResponse
 
-    @POST("student/request-otp")
+    @POST("student/send-otp")
     suspend fun studentRequestOtp(@Body email: EmailRequest): OtpResponse
 
     @POST("student/verify-otp")
-    suspend fun studentVerifyOtp(@Body otpVerification: OtpVerificationRequest): OtpVerificationResponse
+    suspend fun studentVerifyOtp(
+        @Body request: OtpVerificationRequest
+    ): OtpVerificationResponse
 
     @POST("student/change-password")
-    suspend fun studentChangePassword(@Body passwordChange: PasswordChangeRequest): PasswordChangeResponse
+    suspend fun changePassword(@Body passwordChange: PasswordChangeRequest): PasswordChangeResponse
 }
