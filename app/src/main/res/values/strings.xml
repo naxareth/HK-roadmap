@@ -1,3 +1,23 @@
 <resources>
-    <string name="app_name">HKroadmap</string>
+    <string name="app_name">YourAppName</string>
+    <string name="signup">SIGNUP</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="already_registered_login">Already Registered? Login</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="sample_button">Sample Button</string>
+    <string name="profile">Profile</string>
+    <string name="info">Info</string>
+    <string name="text_here">Text Here</string>
+    <string name="sample">Sample</string>
+    <string name="container_box_1_with_text">STUDENT INFO</string>
+    <string name="container_box_2">Container Box 2</string>
+    <string name="container_box_3">Container Box 3</string>
+    <string name="container_box_4">Container Box 4</string>
+    <string name="container_box_5">text here</string>
+    <string name="container_box_6">text here</string>
+    <string name="container_box_7">text here</string>
+    <string name="container_box_here">STUDENT INFO</string>
+    <string name="menu">Menu</string>
+    <string name="hk_roadmap">HK Roadmap</string>
 </resources>

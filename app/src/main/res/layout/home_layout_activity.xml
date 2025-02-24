@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp">
+
+        <!-- Side Menu Button (Top Left) -->
+        <Button
+            android:id="@+id/sampleButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_marginStart="16dp"
+            android:text="@string/menu"/>
+
+        <Button
+            android:id="@+id/profileButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/profile"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="16dp"
+            tools:ignore="RelativeOverlap" />
+
+        <!-- Centered Text -->
+        <TextView
+            android:id="@+id/centerText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/text_here"
+            android:textSize="18sp"
+            android:layout_centerHorizontal="true"
+            android:layout_below="@+id/sampleButton"
+            android:layout_marginTop="16dp"/>
+
+        <!-- First Container Box -->
+        <TextView
+            android:id="@+id/containerBox2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="120dp"
+            android:background="@android:color/darker_gray"
+            android:gravity="center"
+            android:padding="70dp"
+            android:text="@string/container_box_2"
+            android:textColor="#4E342E" />
+
+        <ImageView
+            android:id="@+id/imageContainerBox2"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/your_image"
+            android:layout_alignRight="@id/containerBox2"
+            android:layout_marginRight="16dp"
+            android:layout_alignTop="@id/containerBox2"
+            android:elevation="8dp"/>
+
+        <!-- Second Container Box -->
+        <TextView
+            android:id="@+id/containerBox3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/containerBox2"
+            android:layout_marginTop="30dp"
+            android:background="@android:color/darker_gray"
+            android:gravity="center"
+            android:padding="70dp"
+            android:text="@string/container_box_3"
+            android:textColor="#4E342E" />
+
+        <ImageView
+            android:id="@+id/imageContainerBox3"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/your_image"
+            android:layout_alignRight="@id/containerBox3"
+            android:layout_marginRight="16dp"
+            android:layout_alignTop="@id/containerBox3"
+            android:elevation="8dp"/>
+
+        <!-- Third Container Box -->
+        <TextView
+            android:id="@+id/containerBox4"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/containerBox3"
+            android:layout_marginTop="30dp"
+            android:background="@android:color/darker_gray"
+            android:gravity="center"
+            android:padding="70dp"
+            android:text="@string/container_box_4"
+            android:textColor="#4E342E" />
+
+        <ImageView
+            android:id="@+id/imageContainerBox4"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/your_image"
+            android:layout_alignRight="@id/containerBox4"
+            android:layout_marginRight="16dp"
+            android:layout_alignTop="@id/containerBox4"
+            android:elevation="8dp"/>
+
+    </RelativeLayout>
+
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/nav_view"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="@color/white"
+        app:menu="@menu/nav_menu">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:background="@color/gray">
+
+            <TextView
+                android:id="@+id/navHeaderTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/hk_roadmap"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+        </LinearLayout>
+
+    </com.google.android.material.navigation.NavigationView>
+
+</androidx.drawerlayout.widget.DrawerLayout>
