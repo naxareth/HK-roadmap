@@ -1,42 +1,193 @@
 package com.second_year.hkroadmap.Views
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.MenuItem
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.DividerItemDecoration
 import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
+import com.second_year.hkroadmap.Adapters.EventsAdapter
+import com.second_year.hkroadmap.Api.Models.EventResponse
 import com.second_year.hkroadmap.databinding.ActivityHomeBinding
 import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHomeBinding
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var eventsAdapter: EventsAdapter
     private val TAG = "HomeActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        binding = ActivityHomeBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e(TAG, "Uncaught exception in thread ${thread.name}", throwable)
+            logError("Fatal error", throwable)
         }
 
-        setupLogoutButton()
+        try {
+            binding = ActivityHomeBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+
+            setupToolbar()
+            setupNavigationDrawer()
+            setupRecyclerView()
+            fetchEvents()
+        } catch (e: Exception) {
+            logError("Error in onCreate", e)
+        }
     }
 
-    private fun setupLogoutButton() {
-        binding.btnLogout.setOnClickListener {
-            handleLogout()
+    private fun setupToolbar() {
+        try {
+            setSupportActionBar(binding.toolbar)
+            supportActionBar?.apply {
+                setDisplayHomeAsUpEnabled(true)
+                setHomeAsUpIndicator(R.drawable.ic_menu)
+                title = getString(R.string.app_name)
+            }
+        } catch (e: Exception) {
+            logError("Error setting up toolbar", e)
+        }
+    }
+
+    private fun setupNavigationDrawer() {
+        try {
+            drawerLayout = binding.drawerLayout
+            val navigationView = binding.navigationView
+
+            navigationView.setNavigationItemSelectedListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.nav_home -> {
+                        drawerLayout.closeDrawers()
+                        true
+                    }
+                    R.id.nav_logout -> {
+                        handleLogout()
+                        true
+                    }
+                    else -> false
+                }
+            }
+        } catch (e: Exception) {
+            logError("Error setting up navigation drawer", e)
+        }
+    }
+
+    private fun setupRecyclerView() {
+        try {
+            eventsAdapter = EventsAdapter()
+            eventsAdapter.setOnEventClickListener { event ->
+                checkEventRequirements(event)
+            }
+
+            binding.eventsRecyclerView.apply {
+                adapter = eventsAdapter
+                layoutManager = LinearLayoutManager(this@HomeActivity)
+                addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
+            }
+        } catch (e: Exception) {
+            logError("Error setting up RecyclerView", e)
+        }
+    }
+
+    private fun checkEventRequirements(event: EventResponse) {
+        val token = TokenManager.getToken(this)
+        if (token == null) {
+            showToast("Authentication error")
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                Log.d(TAG, "Checking requirements for event: ${event.id}")
+                val authToken = "Bearer $token"
+                val requirements = RetrofitInstance.createApiService()
+                    .getRequirementsByEventId(authToken, event.id)
+
+                // Validate that requirements belong to this event
+                val validRequirements = requirements.filter { it.event_id == event.id }
+
+                if (validRequirements.isEmpty()) {
+                    Log.d(TAG, "No valid requirements found for event: ${event.id}")
+                    showToast("No requirements found for this event")
+                } else {
+                    Log.d(TAG, "Found ${validRequirements.size} valid requirements for event: ${event.id}")
+                    Log.d(TAG, "Event details - Title: ${event.title}, Date: ${event.date}, Location: ${event.location}")
+
+                    Intent(this@HomeActivity, RequirementActivity::class.java).also { intent ->
+                        intent.putExtra("event_id", event.id)
+                        intent.putExtra("event_title", event.title)
+                        intent.putExtra("event_date", event.date)
+                        intent.putExtra("event_location", event.location ?: "TBD")
+                        startActivity(intent)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking requirements", e)
+                showToast("Error checking requirements")
+            }
+        }
+    }
+
+    private fun fetchEvents() {
+        val token = TokenManager.getToken(this)
+        if (token == null) {
+            logError("Authentication error", null)
+            showToast("Authentication error")
+            navigateToLogin()
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                Log.d(TAG, "Fetching events...")
+                val authToken = "Bearer $token"
+                val events = RetrofitInstance.createApiService().getEvents(authToken)
+                Log.d(TAG, "Received events: ${events.size}")
+
+                events.forEach { event ->
+                    Log.d(TAG, "Raw event data: $event")
+                }
+
+                val eventResponses = events.mapNotNull { eventItem ->
+                    try {
+                        EventResponse(
+                            id = eventItem.event_id,
+                            title = eventItem.event_name,
+                            description = "No description available",
+                            date = eventItem.date,
+                            location = "TBD",
+                            created_at = eventItem.date,
+                            updated_at = eventItem.date
+                        ).also {
+                            Log.d(TAG, "Converted event: $it")
+                        }
+                    } catch (e: Exception) {
+                        logError("Error converting event: ${eventItem}", e)
+                        null
+                    }
+                }
+
+                if (eventResponses.isEmpty()) {
+                    Log.w(TAG, "No events available after conversion")
+                    showToast("No events available")
+                } else {
+                    Log.d(TAG, "Setting ${eventResponses.size} events to adapter")
+                    eventsAdapter.setEvents(eventResponses)
+                }
+            } catch (e: Exception) {
+                logError("Failed to fetch events", e)
+                showToast("Failed to load events: ${e.message}")
+            }
         }
     }
 
@@ -57,15 +208,36 @@ class HomeActivity : AppCompatActivity() {
                 if (response.message.contains("success", ignoreCase = true)) {
                     performLocalLogout()
                 } else {
+                    logError("Logout failed with message: ${response.message}", null)
                     showToast("Logout failed: ${response.message}")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Logout failed", e)
+                logError("Logout failed", e)
                 showToast("Logout failed: ${e.message}")
-                // Perform local logout anyway in case of network error
                 performLocalLogout()
             }
         }
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> {
+                drawerLayout.openDrawer(GravityCompat.START)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun logError(message: String, throwable: Throwable?) {
+        Log.e(TAG, """
+            Error: $message
+            Stack trace: ${throwable?.stackTraceToString() ?: "No stack trace"}
+            Device: ${Build.MANUFACTURER} ${Build.MODEL}
+            Android version: ${Build.VERSION.RELEASE}
+            Package: ${packageName}
+            Version: ${packageManager.getPackageInfo(packageName, 0).versionName}
+        """.trimIndent())
     }
 
     private fun performLocalLogout() {
@@ -82,6 +254,13 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        runOnUiThread {
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        fetchEvents()
     }
 }

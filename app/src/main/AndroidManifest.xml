@@ -25,6 +25,9 @@
         android:theme="@style/Theme.HKroadmap"
         tools:targetApi="31">
         <activity
+            android:name=".Views.RequirementActivity"
+            android:exported="false" />
+        <activity
             android:name=".Views.EmailInputActivity"
             android:exported="false" />
         <activity
