@@ -28,18 +28,26 @@ interface ApiService {
     @POST("student/change-password")
     suspend fun changePassword(@Body passwordChange: PasswordChangeRequest): PasswordChangeResponse
 
-    // Document endpoints
+    // Student document endpoints
+    @GET("documents/student")
+    suspend fun getStudentDocuments(
+        @Header("Authorization") token: String
+    ): DocumentListResponse
+
     @Multipart
     @POST("documents/upload")
     suspend fun uploadDocument(
         @Header("Authorization") token: String,
         @Part file: MultipartBody.Part,
-        @Part("description") description: RequestBody
-    ): DocumentResponse
+        @Part("event_id") eventId: RequestBody,
+        @Part("requirement_id") requirementId: RequestBody
+    ): DocumentUploadResponse
 
-    @GET("documents/upload")
-    suspend fun getAllDocuments(@Header("Authorization") token: String): DocumentListResponse
-
+    @HTTP(method = "DELETE", path = "documents/delete", hasBody = true)
+    suspend fun deleteDocument(
+        @Header("Authorization") token: String,
+        @Body request: DocumentDeleteRequest
+    ): DocumentDeleteResponse
     // Requirement endpoints
     @GET("requirements/get")
     suspend fun getRequirements(
