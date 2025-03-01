@@ -1,30 +1,33 @@
 package com.second_year.hkroadmap.Views
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
-import android.widget.Toast
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.DividerItemDecoration
+import com.google.android.material.snackbar.Snackbar
 import com.second_year.hkroadmap.Adapters.RequirementsAdapter
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
+import com.second_year.hkroadmap.Api.Models.RequirementItem
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
-import com.second_year.hkroadmap.R
+import com.second_year.hkroadmap.Api.Repository.RequirementRepository
+import com.second_year.hkroadmap.ViewModel.RequirementViewModel
+import com.second_year.hkroadmap.ViewModel.ViewModelFactory
 import com.second_year.hkroadmap.databinding.ActivityRequirementBinding
-import com.second_year.hkroadmap.databinding.ItemEventBinding
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 class RequirementActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRequirementBinding
+    private lateinit var viewModel: RequirementViewModel
     private lateinit var requirementsAdapter: RequirementsAdapter
+
     private var eventId: Int = -1
     private var eventTitle: String = ""
-    private var eventDate: String = ""
-    private var eventLocation: String = ""
     private val TAG = "RequirementActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,21 +38,29 @@ class RequirementActivity : AppCompatActivity() {
         // Get event details from intent
         eventId = intent.getIntExtra("event_id", -1)
         eventTitle = intent.getStringExtra("event_title") ?: "Requirements"
-        eventDate = intent.getStringExtra("event_date") ?: ""
-        eventLocation = intent.getStringExtra("event_location") ?: "TBD"
-
-        Log.d(TAG, "Received event details - ID: $eventId, Title: $eventTitle, Date: $eventDate, Location: $eventLocation")
 
         if (eventId == -1) {
-            showToast("Invalid event")
+            showError("Invalid event ID")
             finish()
             return
         }
 
-        setupToolbar()
-        setupEventDetails()
-        setupRecyclerView()
+        setupDependencies()
+        setupViews()
+        observeViewModel()
         fetchRequirements()
+    }
+
+    private fun setupDependencies() {
+        val apiService = RetrofitInstance.createApiService()
+        val repository = RequirementRepository(apiService)
+        val factory = ViewModelFactory(requirementRepository = repository)
+        viewModel = ViewModelProvider(this, factory)[RequirementViewModel::class.java]
+    }
+
+    private fun setupViews() {
+        setupToolbar()
+        setupRecyclerView()
     }
 
     private fun setupToolbar() {
@@ -61,45 +72,11 @@ class RequirementActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupEventDetails() {
-        try {
-            val eventCardView = layoutInflater.inflate(R.layout.item_event, binding.eventContainer, false)
-            binding.eventContainer.addView(eventCardView)
-            val eventBinding = ItemEventBinding.bind(eventCardView)
-
-            eventBinding.apply {
-                tvEventTitle.text = eventTitle
-                tvEventLocation.text = eventLocation
-
-                try {
-                    if (eventDate == "0000-00-00 00:00:00" || eventDate.isEmpty()) {
-                        tvEventDate.text = "Date TBD"
-                    } else {
-                        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                        val outputFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
-                        val date = inputFormat.parse(eventDate)
-                        if (date != null) {
-                            tvEventDate.text = outputFormat.format(date)
-                        } else {
-                            tvEventDate.text = "Date unavailable"
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing date: $eventDate", e)
-                    tvEventDate.text = "Date unavailable"
-                }
-
-                // Disable click events on the event card
-                root.isClickable = false
-                root.isFocusable = false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting up event details", e)
-        }
-    }
-
     private fun setupRecyclerView() {
-        requirementsAdapter = RequirementsAdapter()
+        requirementsAdapter = RequirementsAdapter { requirement ->
+            navigateToDocumentSubmission(requirement)
+        }
+
         binding.requirementsRecyclerView.apply {
             adapter = requirementsAdapter
             layoutManager = LinearLayoutManager(this@RequirementActivity)
@@ -107,10 +84,18 @@ class RequirementActivity : AppCompatActivity() {
         }
     }
 
+    private fun navigateToDocumentSubmission(requirement: RequirementItem) {
+        Intent(this, DocumentSubmissionActivity::class.java).apply {
+            putExtra("event_id", eventId)
+            putExtra("requirement_id", requirement.requirement_id)
+            startActivity(this)
+        }
+    }
+
     private fun fetchRequirements() {
         val token = TokenManager.getToken(this)
         if (token == null) {
-            showToast("Authentication error")
+            showError("Authentication required")
             finish()
             return
         }
@@ -118,21 +103,34 @@ class RequirementActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val authToken = "Bearer $token"
-                val requirements = RetrofitInstance.createApiService()
-                    .getRequirementsByEventId(authToken, eventId)
-
-                // Filter requirements for this specific event
-                val validRequirements = requirements.filter { it.event_id == eventId }
-
-                if (validRequirements.isEmpty()) {
-                    showToast("No requirements found for this event")
-                } else {
-                    requirementsAdapter.setRequirements(validRequirements)
-                }
+                viewModel.getRequirementsByEventId(authToken, eventId)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch requirements", e)
-                showToast("Failed to load requirements: ${e.message}")
+                showError("Failed to load requirements: ${e.message}")
             }
+        }
+    }
+
+    private fun observeViewModel() {
+        viewModel.requirements.observe(this) { requirements ->
+            val validRequirements = requirements.filter { it.event_id == eventId }
+            requirementsAdapter.submitList(validRequirements)
+            updateEmptyState(validRequirements.isEmpty())
+        }
+
+        viewModel.isLoading.observe(this) { isLoading ->
+            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        }
+
+        viewModel.error.observe(this) { error ->
+            error?.let { showError(it) }
+        }
+    }
+
+    private fun updateEmptyState(isEmpty: Boolean) {
+        binding.apply {
+            emptyStateLayout.visibility = if (isEmpty) View.VISIBLE else View.GONE
+            requirementsRecyclerView.visibility = if (isEmpty) View.GONE else View.VISIBLE
         }
     }
 
@@ -146,7 +144,7 @@ class RequirementActivity : AppCompatActivity() {
         }
     }
 
-    private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    private fun showError(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
     }
 }

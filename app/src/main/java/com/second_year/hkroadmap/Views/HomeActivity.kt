@@ -10,13 +10,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.DividerItemDecoration
-import com.second_year.hkroadmap.R
-import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
-import com.second_year.hkroadmap.Api.Interfaces.TokenManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.second_year.hkroadmap.Adapters.EventsAdapter
 import com.second_year.hkroadmap.Api.Models.EventResponse
+import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
+import com.second_year.hkroadmap.Api.Interfaces.TokenManager
+import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.databinding.ActivityHomeBinding
 import kotlinx.coroutines.launch
 
@@ -84,9 +84,10 @@ class HomeActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         try {
-            eventsAdapter = EventsAdapter()
-            eventsAdapter.setOnEventClickListener { event ->
-                checkEventRequirements(event)
+            eventsAdapter = EventsAdapter().apply {
+                setOnEventClickListener { event ->
+                    checkEventRequirements(event)
+                }
             }
 
             binding.eventsRecyclerView.apply {
@@ -113,7 +114,6 @@ class HomeActivity : AppCompatActivity() {
                 val requirements = RetrofitInstance.createApiService()
                     .getRequirementsByEventId(authToken, event.id)
 
-                // Validate that requirements belong to this event
                 val validRequirements = requirements.filter { it.event_id == event.id }
 
                 if (validRequirements.isEmpty()) {
@@ -121,20 +121,22 @@ class HomeActivity : AppCompatActivity() {
                     showToast("No requirements found for this event")
                 } else {
                     Log.d(TAG, "Found ${validRequirements.size} valid requirements for event: ${event.id}")
-                    Log.d(TAG, "Event details - Title: ${event.title}, Date: ${event.date}, Location: ${event.location}")
-
-                    Intent(this@HomeActivity, RequirementActivity::class.java).also { intent ->
-                        intent.putExtra("event_id", event.id)
-                        intent.putExtra("event_title", event.title)
-                        intent.putExtra("event_date", event.date)
-                        intent.putExtra("event_location", event.location ?: "TBD")
-                        startActivity(intent)
-                    }
+                    navigateToRequirements(event)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking requirements", e)
                 showToast("Error checking requirements")
             }
+        }
+    }
+
+    private fun navigateToRequirements(event: EventResponse) {
+        Intent(this@HomeActivity, RequirementActivity::class.java).also { intent ->
+            intent.putExtra("event_id", event.id)
+            intent.putExtra("event_title", event.title)
+            intent.putExtra("event_date", event.date)
+            intent.putExtra("event_location", event.location ?: "TBD")
+            startActivity(intent)
         }
     }
 
@@ -153,10 +155,6 @@ class HomeActivity : AppCompatActivity() {
                 val authToken = "Bearer $token"
                 val events = RetrofitInstance.createApiService().getEvents(authToken)
                 Log.d(TAG, "Received events: ${events.size}")
-
-                events.forEach { event ->
-                    Log.d(TAG, "Raw event data: $event")
-                }
 
                 val eventResponses = events.mapNotNull { eventItem ->
                     try {
@@ -182,7 +180,7 @@ class HomeActivity : AppCompatActivity() {
                     showToast("No events available")
                 } else {
                     Log.d(TAG, "Setting ${eventResponses.size} events to adapter")
-                    eventsAdapter.setEvents(eventResponses)
+                    eventsAdapter.submitList(eventResponses)
                 }
             } catch (e: Exception) {
                 logError("Failed to fetch events", e)

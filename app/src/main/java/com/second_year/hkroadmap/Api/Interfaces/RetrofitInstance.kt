@@ -11,7 +11,7 @@ import java.net.CookiePolicy
 import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
-    private const val BASE_URL = "http://192.168.0.12:8000/hk-roadmap/"
+    private const val BASE_URL = "http://192.168.134.29:8000/hk-roadmap/"
     private const val TAG = "RetrofitInstance"
     private const val TIMEOUT_SECONDS = 30L
 

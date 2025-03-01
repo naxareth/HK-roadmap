@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.mediation.test.suite)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -64,4 +65,6 @@ dependencies {
     implementation ("androidx.appcompat:appcompat:1.4.1")
     implementation ("androidx.constraintlayout:constraintlayout:2.1.3")
     implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.4.1")
+
+    implementation ("com.google.android.gms:play-services-ads:22.6.0")
 }
