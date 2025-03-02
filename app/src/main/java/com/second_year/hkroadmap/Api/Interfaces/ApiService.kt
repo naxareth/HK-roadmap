@@ -32,7 +32,7 @@ interface ApiService {
     @GET("documents/student")
     suspend fun getStudentDocuments(
         @Header("Authorization") token: String
-    ): DocumentListResponse
+    ): List<DocumentResponse>
 
     @Multipart
     @POST("documents/upload")

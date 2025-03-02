@@ -1,20 +1,30 @@
 <resources>
     <string name="app_name">HKroadmap</string>
+
+    <!-- Document Submission -->
     <string name="title_submit_documents">Submit Documents</string>
-    <string name="error_invalid_ids">Invalid event or requirement ID</string>
-    <string name="error_processing_file">Error processing file</string>
-    <string name="error_unknown">An unknown error occurred</string>
-    <string name="error_auth_required">Authentication required</string>
     <string name="no_attachments">No attachments</string>
     <string name="no_documents_uploaded">No documents uploaded yet</string>
     <string name="add_document">Add document</string>
     <string name="delete_document">Delete document</string>
-    <string name="upload_success">Document uploaded successfully</string>
-    <string name="delete_success">Document deleted successfully</string>
-    <string name="upload_error">Failed to upload document</string>
-    <string name="delete_error">Failed to delete document</string>
-    <string name="loading_documents">Loading documents…</string>
     <string name="select_file">Select a file</string>
     <string name="file_icon">File icon</string>
     <string name="no_requirements">No requirements found</string>
+
+    <!-- Loading States -->
+    <string name="loading_documents">Loading documents…</string>
+
+    <!-- Success Messages -->
+    <string name="upload_success">Document uploaded successfully</string>
+    <string name="delete_success">Document deleted successfully</string>
+
+    <!-- Error Messages -->
+    <string name="error_invalid_ids">Invalid event or requirement ID</string>
+    <string name="error_processing_file">Error processing file</string>
+    <string name="error_unknown">An unknown error occurred</string>
+    <string name="error_auth_required">Authentication required</string>
+    <string name="error_upload_failed">Failed to upload document</string>
+    <string name="error_delete_failed">Failed to delete document</string>
+    <string name="error_loading_documents">Failed to load documents</string>
+    <string name="error_processing_documents">Error processing documents</string>
 </resources>
