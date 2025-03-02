@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.JsonParseException
 import com.second_year.hkroadmap.Adapters.DocumentAdapter
@@ -34,6 +35,8 @@ class DocumentSubmissionActivity : AppCompatActivity() {
 
     private var eventId: Int = 0
     private var requirementId: Int = 0
+    private var requirementTitle: String = ""
+    private var requirementDueDate: String = ""
 
     private val getContent = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
@@ -50,10 +53,21 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         checkToken()
         Log.d(TAG, "Activity created")
 
-        eventId = intent.getIntExtra("event_id", 0)
-        requirementId = intent.getIntExtra("requirement_id", 0)
+        // Get all intent extras
+        intent.extras?.let { extras ->
+            eventId = extras.getInt("event_id", 0)
+            requirementId = extras.getInt("requirement_id", 0)
+            requirementTitle = extras.getString("requirement_title", "")
+            requirementDueDate = extras.getString("requirement_due_date", "")
 
-        Log.d(TAG, "Received IDs - eventId: $eventId, requirementId: $requirementId")
+            Log.d(TAG, """
+                Received data:
+                - Event ID: $eventId
+                - Requirement ID: $requirementId
+                - Title: $requirementTitle
+                - Due Date: $requirementDueDate
+            """.trimIndent())
+        }
 
         if (eventId == 0 || requirementId == 0) {
             Log.e(TAG, "Invalid IDs received. Finishing activity")
@@ -111,15 +125,29 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
-            title = getString(R.string.title_submit_documents)
+            title = if (requirementTitle.isNotEmpty()) {
+                requirementTitle
+            } else {
+                getString(R.string.title_submit_documents)
+            }
         }
+
+        // Show requirement details if available
+        if (requirementTitle.isNotEmpty() || requirementDueDate.isNotEmpty()) {
+            binding.layoutRequirementDetails.visibility = View.VISIBLE
+            binding.tvRequirementTitle.text = requirementTitle
+            binding.tvRequirementDueDate.text = getString(R.string.due_date_format, requirementDueDate)
+        } else {
+            binding.layoutRequirementDetails.visibility = View.GONE
+        }
+
         Log.d(TAG, "Toolbar setup completed")
     }
 
     private fun setupRecyclerView() {
         documentAdapter = DocumentAdapter { document ->
             Log.d(TAG, "Delete requested for document: ${document.id}")
-            deleteDocument(document)
+            showDeleteConfirmation(document)
         }
 
         binding.rvDocuments.apply {
@@ -130,8 +158,8 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        binding.fabAddDocument.setOnClickListener {
-            Log.d(TAG, "FAB clicked - launching file picker")
+        binding.btnUploadFile.setOnClickListener {
+            Log.d(TAG, "Upload file button clicked - launching file picker")
             getContent.launch("*/*")
         }
 
@@ -188,6 +216,22 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             Log.e(TAG, "Error during upload: ${e.message}", e)
             showError(getString(R.string.error_upload_failed))
         }
+    }
+
+    private fun showDeleteConfirmation(document: DocumentResponse) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.delete_confirmation_title))
+            .setMessage(getString(R.string.delete_confirmation_message))
+            .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                Log.d(TAG, "Delete cancelled by user")
+                dialog.dismiss()
+            }
+            .setPositiveButton(getString(R.string.delete)) { dialog, _ ->
+                Log.d(TAG, "Delete confirmed by user")
+                deleteDocument(document)
+                dialog.dismiss()
+            }
+            .show()
     }
 
     private fun deleteDocument(document: DocumentResponse) {
@@ -250,7 +294,6 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     private fun observeViewModel() {
         viewModel.studentDocuments.observe(this) { documents ->
             try {
-                // Handle the array response directly
                 val filteredDocs = documents?.filter {
                     it.event_id == eventId && it.requirement_id == requirementId
                 } ?: emptyList()

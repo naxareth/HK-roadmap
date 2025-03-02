@@ -14,8 +14,35 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_back"
-            app:titleTextColor="@color/white" />
+            app:navigationIcon="@drawable/ic_back" />
+
+        <LinearLayout
+            android:id="@+id/layoutRequirementDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_margin="16dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/tvRequirementTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                tools:text="Requirement Title" />
+
+            <TextView
+                android:id="@+id/tvRequirementDueDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="16sp"
+                tools:text="Due: Jan 1, 2024" />
+
+        </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -30,46 +57,18 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Title Section -->
-            <TextView
-                android:id="@+id/tvRequirementTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/primary_blue"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                tools:text="Requirement Name" />
-
-            <TextView
-                android:id="@+id/tvDueDate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textSize="16sp"
-                tools:text="Deadline" />
-
-            <!-- Attachments Section -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="Attachments"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <!-- Empty State -->
             <FrameLayout
                 android:id="@+id/layout_no_attachments"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp">
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:orientation="vertical"
-                    android:padding="32dp">
+                    android:orientation="vertical">
 
                     <ImageView
                         android:layout_width="120dp"
@@ -83,41 +82,37 @@
                         android:layout_marginTop="16dp"
                         android:text="@string/no_documents_uploaded"
                         android:textSize="16sp" />
+
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- Document List -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_documents"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
                 android:visibility="gone"
                 tools:visibility="visible" />
 
-            <!-- Loading Indicator -->
             <ProgressBar
                 android:id="@+id/progress_bar"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_marginTop="16dp"
                 android:visibility="gone" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_upload_file"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/upload_document"
+                android:textAllCaps="false"
+                app:icon="@drawable/ic_add"
+                android:backgroundTint="@color/primary_blue"
+                app:iconGravity="textStart" />
 
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_add_document"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:contentDescription="@string/add_document"
-        android:src="@drawable/ic_add"
-        app:backgroundTint="@color/primary_blue"
-        app:tint="@color/white" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

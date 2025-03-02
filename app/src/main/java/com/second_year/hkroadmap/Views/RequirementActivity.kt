@@ -16,6 +16,7 @@ import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Models.RequirementItem
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.Api.Repository.RequirementRepository
+import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.ViewModel.RequirementViewModel
 import com.second_year.hkroadmap.ViewModel.ViewModelFactory
 import com.second_year.hkroadmap.databinding.ActivityRequirementBinding
@@ -26,21 +27,41 @@ class RequirementActivity : AppCompatActivity() {
     private lateinit var viewModel: RequirementViewModel
     private lateinit var requirementsAdapter: RequirementsAdapter
 
+    companion object {
+        private const val TAG = "RequirementActivity"
+    }
+
     private var eventId: Int = -1
     private var eventTitle: String = ""
-    private val TAG = "RequirementActivity"
+    private var eventDate: String = ""
+    private var eventLocation: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRequirementBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        Log.d(TAG, "Activity created")
+
         // Get event details from intent
-        eventId = intent.getIntExtra("event_id", -1)
-        eventTitle = intent.getStringExtra("event_title") ?: "Requirements"
+        intent.extras?.let { extras ->
+            eventId = extras.getInt("event_id", -1)
+            eventTitle = extras.getString("event_title", "")
+            eventDate = extras.getString("event_date", "")
+            eventLocation = extras.getString("event_location", "TBD")
+
+            Log.d(TAG, """
+                Received event details:
+                - ID: $eventId
+                - Title: $eventTitle
+                - Date: $eventDate
+                - Location: $eventLocation
+            """.trimIndent())
+        }
 
         if (eventId == -1) {
-            showError("Invalid event ID")
+            Log.e(TAG, "Invalid event ID received")
+            showError(getString(R.string.error_invalid_event))
             finish()
             return
         }
@@ -52,6 +73,7 @@ class RequirementActivity : AppCompatActivity() {
     }
 
     private fun setupDependencies() {
+        Log.d(TAG, "Setting up dependencies")
         val apiService = RetrofitInstance.createApiService()
         val repository = RequirementRepository(apiService)
         val factory = ViewModelFactory(requirementRepository = repository)
@@ -59,7 +81,9 @@ class RequirementActivity : AppCompatActivity() {
     }
 
     private fun setupViews() {
+        Log.d(TAG, "Setting up views")
         setupToolbar()
+        setupEventDetails()
         setupRecyclerView()
     }
 
@@ -70,6 +94,16 @@ class RequirementActivity : AppCompatActivity() {
             setDisplayShowHomeEnabled(true)
             title = eventTitle
         }
+        Log.d(TAG, "Toolbar setup completed with title: $eventTitle")
+    }
+
+    private fun setupEventDetails() {
+        binding.apply {
+            tvEventTitle.text = eventTitle
+            tvEventDate.text = eventDate
+            tvEventLocation.text = eventLocation
+        }
+        Log.d(TAG, "Event details displayed")
     }
 
     private fun setupRecyclerView() {
@@ -82,12 +116,23 @@ class RequirementActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@RequirementActivity)
             addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
         }
+        Log.d(TAG, "RecyclerView setup completed")
     }
 
     private fun navigateToDocumentSubmission(requirement: RequirementItem) {
+        Log.d(TAG, """
+            Navigating to DocumentSubmission:
+            - Event ID: $eventId
+            - Requirement ID: ${requirement.requirement_id}
+            - Requirement Name: ${requirement.requirement_name}
+            - Due Date: ${requirement.due_date}
+        """.trimIndent())
+
         Intent(this, DocumentSubmissionActivity::class.java).apply {
             putExtra("event_id", eventId)
             putExtra("requirement_id", requirement.requirement_id)
+            putExtra("requirement_title", requirement.requirement_name)
+            putExtra("requirement_due_date", requirement.due_date)
             startActivity(this)
         }
     }
@@ -95,18 +140,20 @@ class RequirementActivity : AppCompatActivity() {
     private fun fetchRequirements() {
         val token = TokenManager.getToken(this)
         if (token == null) {
-            showError("Authentication required")
+            Log.e(TAG, "No authentication token found")
+            showError(getString(R.string.error_auth_required))
             finish()
             return
         }
 
         lifecycleScope.launch {
             try {
+                Log.d(TAG, "Fetching requirements for event: $eventId")
                 val authToken = "Bearer $token"
                 viewModel.getRequirementsByEventId(authToken, eventId)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch requirements", e)
-                showError("Failed to load requirements: ${e.message}")
+                showError(getString(R.string.error_loading_requirements))
             }
         }
     }
@@ -114,20 +161,26 @@ class RequirementActivity : AppCompatActivity() {
     private fun observeViewModel() {
         viewModel.requirements.observe(this) { requirements ->
             val validRequirements = requirements.filter { it.event_id == eventId }
+            Log.d(TAG, "Requirements received: ${requirements.size}, Valid: ${validRequirements.size}")
             requirementsAdapter.submitList(validRequirements)
             updateEmptyState(validRequirements.isEmpty())
         }
 
         viewModel.isLoading.observe(this) { isLoading ->
+            Log.d(TAG, "Loading state changed: $isLoading")
             binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         }
 
         viewModel.error.observe(this) { error ->
-            error?.let { showError(it) }
+            error?.let {
+                Log.e(TAG, "Error received: $it")
+                showError(it)
+            }
         }
     }
 
     private fun updateEmptyState(isEmpty: Boolean) {
+        Log.d(TAG, "Updating empty state: $isEmpty")
         binding.apply {
             emptyStateLayout.visibility = if (isEmpty) View.VISIBLE else View.GONE
             requirementsRecyclerView.visibility = if (isEmpty) View.GONE else View.VISIBLE
@@ -137,6 +190,7 @@ class RequirementActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
+                Log.d(TAG, "Back navigation selected")
                 onBackPressed()
                 true
             }
@@ -145,6 +199,7 @@ class RequirementActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
+        Log.e(TAG, "Showing error: $message")
         Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
     }
 }

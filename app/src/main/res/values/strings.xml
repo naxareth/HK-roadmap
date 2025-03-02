@@ -1,7 +1,8 @@
 <resources>
-    <string name="app_name">HKroadmap</string>
+    <string name="app_name">HK ROADMAP</string>
 
     <!-- Document Submission -->
+    <string name="upload_document">UPLOAD FILE</string>
     <string name="title_submit_documents">Submit Documents</string>
     <string name="no_attachments">No attachments</string>
     <string name="no_documents_uploaded">No documents uploaded yet</string>
@@ -10,6 +11,11 @@
     <string name="select_file">Select a file</string>
     <string name="file_icon">File icon</string>
     <string name="no_requirements">No requirements found</string>
+    <string name="due_date_format">Due: %s</string>
+    <string name="delete_confirmation_title">Delete Document</string>
+    <string name="delete_confirmation_message">Are you sure you want to delete this document?</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
 
     <!-- Loading States -->
     <string name="loading_documents">Loading documents…</string>
@@ -27,4 +33,8 @@
     <string name="error_delete_failed">Failed to delete document</string>
     <string name="error_loading_documents">Failed to load documents</string>
     <string name="error_processing_documents">Error processing documents</string>
+
+    <string name="requirements">REQUIREMENTS</string>
+    <string name="error_loading_requirements">Failed to load requirements</string>
+    <string name="error_invalid_event">Invalid event details</string>
 </resources>
