@@ -56,6 +56,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:textSize="12sp"
+            android:textColor="@color/white"
             app:layout_constraintStart_toStartOf="@id/tvFileName"
             app:layout_constraintTop_toBottomOf="@id/tvFileDate"
             tools:text="Draft" />

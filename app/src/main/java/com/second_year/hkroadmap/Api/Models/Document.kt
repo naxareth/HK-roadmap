@@ -103,6 +103,7 @@ object FileConstants {
     val ALLOWED_MIME_TYPES = listOf(
         "application/pdf",
         "image/jpeg",
+        "image/jpg",  // Added this as some systems might use jpg
         "image/png"
     )
     const val UPLOAD_DIR = "uploads/"

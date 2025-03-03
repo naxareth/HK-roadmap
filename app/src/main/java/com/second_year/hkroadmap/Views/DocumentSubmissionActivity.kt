@@ -8,7 +8,9 @@ import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -18,6 +20,7 @@ import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.Api.Models.DocumentResponse
 import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.Repository.DocumentRepository
+import com.second_year.hkroadmap.Utils.DocumentLoggingUtils
 import com.second_year.hkroadmap.Utils.DocumentUploadUtils
 import com.second_year.hkroadmap.Utils.FileUtils
 import com.second_year.hkroadmap.ViewModel.DocumentViewModel
@@ -113,12 +116,12 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             }
         }
 
-        if (requirementTitle.isNotEmpty() || requirementDueDate.isNotEmpty()) {
-            binding.layoutRequirementDetails.visibility = View.VISIBLE
+        binding.layoutRequirementDetails.isVisible =
+            requirementTitle.isNotEmpty() || requirementDueDate.isNotEmpty()
+
+        if (binding.layoutRequirementDetails.isVisible) {
             binding.tvRequirementTitle.text = requirementTitle
             binding.tvRequirementDueDate.text = getString(R.string.due_date_format, requirementDueDate)
-        } else {
-            binding.layoutRequirementDetails.visibility = View.GONE
         }
     }
 
@@ -133,6 +136,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         binding.rvDocuments.apply {
             layoutManager = LinearLayoutManager(this@DocumentSubmissionActivity)
             adapter = documentAdapter
+            addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
         }
     }
 
@@ -158,7 +162,6 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                 Log.d(TAG, """
                     Filtering Results:
                     - Total documents: ${filteredDocs.size}
-                    - Filtered documents: ${filteredDocs.size}
                     - For Event ID: $eventId
                     - For Requirement ID: $requirementId
                 """.trimIndent())
@@ -172,15 +175,21 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         }
 
         viewModel.isLoading.observe(this) { isLoading ->
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+            binding.progressBar.isVisible = isLoading
         }
 
         viewModel.errorMessage.observe(this) { error ->
-            error?.let { showError(it) }
+            error?.let {
+                showError(it)
+                viewModel.clearMessages()
+            }
         }
 
         viewModel.successMessage.observe(this) { message ->
-            message?.let { showSuccess(it) }
+            message?.let {
+                showSuccess(it)
+                viewModel.clearMessages()
+            }
         }
     }
 
@@ -201,7 +210,6 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         try {
             val file = FileUtils.getFileFromUri(this, uri)
             if (file != null) {
-                // Validate before upload
                 val error = DocumentUploadUtils.getFileError(file)
                 if (error != null) {
                     showError(error)
@@ -242,6 +250,11 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     }
 
     private fun showSubmitConfirmation(document: DocumentResponse) {
+        if (document.status.lowercase() != "draft") {
+            showError("Only draft documents can be submitted")
+            return
+        }
+
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.submit_confirmation_title))
             .setMessage(getString(R.string.submit_confirmation_message))
@@ -254,6 +267,11 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     }
 
     private fun showUnsubmitConfirmation(document: DocumentResponse) {
+        if (document.status.lowercase() != "pending") {
+            showError("Only pending documents can be unsubmitted")
+            return
+        }
+
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.unsubmit_confirmation_title))
             .setMessage(getString(R.string.unsubmit_confirmation_message))
@@ -292,7 +310,10 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     }
 
     private fun unsubmitDocument(document: DocumentResponse) {
+        DocumentLoggingUtils.logRequest("Unsubmit", document.document_id, TokenManager.getToken(this))
+
         val token = TokenManager.getToken(this) ?: run {
+            Log.e(TAG, "Token not found, redirecting to login")
             redirectToLogin()
             return
         }
@@ -300,10 +321,11 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         try {
             viewModel.unsubmitDocument(token, document.document_id)
         } catch (e: Exception) {
+            Log.e(TAG, "Error unsubmitting document", e)
+            DocumentLoggingUtils.logError("Unsubmit", e)
             showError(getString(R.string.error_unsubmit_failed))
         }
     }
-
     private fun viewDocument(document: DocumentResponse) {
         try {
             val file = File(document.file_path)
@@ -340,8 +362,8 @@ class DocumentSubmissionActivity : AppCompatActivity() {
 
     private fun updateEmptyState(isEmpty: Boolean) {
         binding.apply {
-            layoutNoAttachments.visibility = if (isEmpty) View.VISIBLE else View.GONE
-            rvDocuments.visibility = if (isEmpty) View.GONE else View.VISIBLE
+            layoutNoAttachments.isVisible = isEmpty
+            rvDocuments.isVisible = !isEmpty
         }
     }
 
