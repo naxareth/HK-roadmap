@@ -1,129 +1,147 @@
+// DocumentViewModel.kt
 package com.second_year.hkroadmap.ViewModel
 
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.second_year.hkroadmap.Api.Models.DocumentResponse
-import com.second_year.hkroadmap.Api.Models.DocumentUploadResponse
 import com.second_year.hkroadmap.Repository.DocumentRepository
 import kotlinx.coroutines.launch
 import java.io.File
 
 class DocumentViewModel(private val documentRepository: DocumentRepository) : ViewModel() {
-    companion object {
-        private const val TAG = "DocumentViewModel"
-    }
 
-    // LiveData for student documents
     private val _studentDocuments = MutableLiveData<List<DocumentResponse>>()
     val studentDocuments: LiveData<List<DocumentResponse>> = _studentDocuments
 
-    // LiveData for loading state
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
-    // LiveData for error messages
-    private val _errorMessage = MutableLiveData<String>()
-    val errorMessage: LiveData<String> = _errorMessage
+    private val _errorMessage = MutableLiveData<String?>()
+    val errorMessage: LiveData<String?> = _errorMessage
 
-    // LiveData for success messages
-    private val _successMessage = MutableLiveData<String>()
-    val successMessage: LiveData<String> = _successMessage
+    private val _successMessage = MutableLiveData<String?>()
+    val successMessage: LiveData<String?> = _successMessage
 
-    // Get all documents for the authenticated student
+    private val _currentDocument = MutableLiveData<DocumentResponse?>()
+    val currentDocument: LiveData<DocumentResponse?> = _currentDocument
+
     fun getStudentDocuments(token: String) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                Log.d(TAG, "Fetching student documents")
-
                 documentRepository.getStudentDocuments(token).fold(
                     onSuccess = { documents ->
-                        Log.d(TAG, "Successfully fetched ${documents.size} documents")
                         _studentDocuments.value = documents
-                        _isLoading.value = false
+                        _errorMessage.value = null
                     },
                     onFailure = { exception ->
-                        Log.e(TAG, "Failed to fetch documents", exception)
-                        _errorMessage.value = exception.message ?: "Failed to get documents"
-                        _isLoading.value = false
+                        _errorMessage.value = exception.message
                     }
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Exception in getStudentDocuments", e)
-                _errorMessage.value = "An unexpected error occurred"
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // Upload document
     fun uploadDocument(token: String, file: File, eventId: Int, requirementId: Int) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                Log.d(TAG, "Uploading document: ${file.name}")
-
                 documentRepository.uploadDocument(token, file, eventId, requirementId).fold(
                     onSuccess = { response ->
-                        Log.d(TAG, "Document upload successful")
-                        _successMessage.value = response.message
-                        _isLoading.value = false
-                        // Refresh the student documents list
+                        _successMessage.value = "Document uploaded successfully"
                         getStudentDocuments(token)
                     },
                     onFailure = { exception ->
-                        Log.e(TAG, "Failed to upload document", exception)
-                        _errorMessage.value = exception.message ?: "Failed to upload document"
-                        _isLoading.value = false
+                        _errorMessage.value = exception.message
                     }
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Exception in uploadDocument", e)
-                _errorMessage.value = "An unexpected error occurred during upload"
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // Delete document
-    fun deleteDocument(token: String, eventId: Int, requirementId: Int, documentId: Int) {
+    fun submitDocument(token: String, documentId: Int) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                Log.d(TAG, "Deleting document: $documentId")
-
-                documentRepository.deleteDocument(token, eventId, requirementId, documentId).fold(
+                documentRepository.submitDocument(token, documentId).fold(
                     onSuccess = { response ->
-                        Log.d(TAG, "Document deletion successful")
-                        _successMessage.value = response ?: "Document deleted successfully"
-                        _isLoading.value = false
-                        // Refresh the student documents list
+                        _successMessage.value = "Document submitted successfully"
                         getStudentDocuments(token)
                     },
                     onFailure = { exception ->
-                        Log.e(TAG, "Failed to delete document", exception)
-                        _errorMessage.value = exception.message ?: "Failed to delete document"
-                        _isLoading.value = false
+                        _errorMessage.value = exception.message
                     }
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Exception in deleteDocument", e)
-                _errorMessage.value = "An unexpected error occurred during deletion"
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // Clear error message
-    fun clearError() {
-        _errorMessage.value = null
+    fun unsubmitDocument(token: String, documentId: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                documentRepository.unsubmitDocument(token, documentId).fold(
+                    onSuccess = { response ->
+                        _successMessage.value = "Document unsubmitted successfully"
+                        getStudentDocuments(token)
+                    },
+                    onFailure = { exception ->
+                        _errorMessage.value = exception.message
+                    }
+                )
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
-    // Clear success message
-    fun clearSuccess() {
+    fun deleteDocument(token: String, documentId: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                documentRepository.deleteDocument(token, documentId).fold(
+                    onSuccess = { response ->
+                        _successMessage.value = "Document deleted successfully"
+                        getStudentDocuments(token)
+                    },
+                    onFailure = { exception ->
+                        _errorMessage.value = exception.message
+                    }
+                )
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun clearMessages() {
+        _errorMessage.value = null
         _successMessage.value = null
+    }
+
+    fun setCurrentDocument(document: DocumentResponse) {
+        _currentDocument.value = document
+    }
+
+    fun clearCurrentDocument() {
+        _currentDocument.value = null
     }
 }

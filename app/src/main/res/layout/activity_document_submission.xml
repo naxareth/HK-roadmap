@@ -57,6 +57,47 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Status Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="8dp"
+                app:strokeColor="@color/primary_blue"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Submission Status"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvSubmissionStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textSize="16sp"
+                        tools:text="Draft" />
+
+                    <TextView
+                        android:id="@+id/tvSubmissionDate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textSize="14sp"
+                        tools:text="Submitted: Not yet" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <FrameLayout
                 android:id="@+id/layout_no_attachments"
                 android:layout_width="match_parent"
@@ -100,16 +141,44 @@
                 android:layout_gravity="center"
                 android:visibility="gone" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_upload_file"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/upload_document"
-                android:textAllCaps="false"
-                app:icon="@drawable/ic_add"
-                android:backgroundTint="@color/primary_blue"
-                app:iconGravity="textStart" />
+                android:orientation="vertical"
+                android:layout_marginTop="16dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_upload_file"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/upload_document"
+                    android:textAllCaps="false"
+                    app:icon="@drawable/ic_add"
+                    android:backgroundTint="@color/primary_blue"
+                    app:iconGravity="textStart" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_submit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Submit Document"
+                    android:textAllCaps="false"
+                    android:backgroundTint="@color/primary_blue"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_unsubmit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Unsubmit Document"
+                    android:textAllCaps="false"
+                    android:backgroundTint="@color/primary_blue"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+            </LinearLayout>
 
         </LinearLayout>
 

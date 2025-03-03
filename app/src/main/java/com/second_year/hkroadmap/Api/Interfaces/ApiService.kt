@@ -3,10 +3,14 @@ package com.second_year.hkroadmap.Api.Interfaces
 import com.second_year.hkroadmap.Api.Models.*
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import retrofit2.Response
 import retrofit2.http.*
 
+/**
+ * API Service interface defining all network endpoints for the application
+ */
 interface ApiService {
-    // Student endpoints
+    // Student Authentication & Profile Management
     @POST("student/register")
     suspend fun studentRegister(@Body student: StudentRegisterRequest): StudentRegisterResponse
 
@@ -28,11 +32,16 @@ interface ApiService {
     @POST("student/change-password")
     suspend fun changePassword(@Body passwordChange: PasswordChangeRequest): PasswordChangeResponse
 
-    // Student document endpoints
+    // Document Management
     @GET("documents/student")
     suspend fun getStudentDocuments(
         @Header("Authorization") token: String
-    ): List<DocumentResponse>
+    ): Response<DocumentListResponse>
+
+    @GET("documents/admin")
+    suspend fun getAdminDocuments(
+        @Header("Authorization") token: String
+    ): Response<DocumentListResponse>
 
     @Multipart
     @POST("documents/upload")
@@ -41,14 +50,41 @@ interface ApiService {
         @Part file: MultipartBody.Part,
         @Part("event_id") eventId: RequestBody,
         @Part("requirement_id") requirementId: RequestBody
-    ): DocumentUploadResponse
+    ): Response<DocumentStatusResponse>
+
+    @POST("documents/submit")
+    suspend fun submitDocument(
+        @Header("Authorization") token: String,
+        @Body body: Map<String, Int>  // {"document_id": id}
+    ): Response<DocumentStatusResponse>
+
+    @POST("documents/unsubmit")
+    suspend fun unsubmitDocument(
+        @Header("Authorization") token: String,
+        @Body body: Map<String, Int>
+    ): Response<DocumentStatusResponse>
 
     @HTTP(method = "DELETE", path = "documents/delete", hasBody = true)
     suspend fun deleteDocument(
         @Header("Authorization") token: String,
-        @Body request: DocumentDeleteRequest
-    ): DocumentDeleteResponse
-    // Requirement endpoints
+        @Body body: Map<String, Int>  // {"document_id": id}
+    ): Response<DocumentStatusResponse>
+
+    @GET("documents/status/{id}")
+    suspend fun getDocumentStatus(
+        @Header("Authorization") token: String,
+        @Path("id") documentId: Int
+    ): Response<DocumentStatusResponse>
+
+    // Event Management
+    @GET("event/get")
+    suspend fun getEvents(
+        @Header("Authorization") token: String
+    ): List<EventItem>
+
+
+
+    // Requirement Management
     @GET("requirements/get")
     suspend fun getRequirements(
         @Header("Authorization") token: String
@@ -60,23 +96,16 @@ interface ApiService {
         @Query("event_id") eventId: Int
     ): List<RequirementItem>
 
-    // Event endpoints
-    @POST("event/add")
-    suspend fun createEvent(
-        @Header("Authorization") token: String,
-        @Body event: EventRequest
-    ): EventResponse
 
-    @GET("event/get")
-    suspend fun getEvents(@Header("Authorization") token: String): List<EventItem>
-
-    // Submission endpoints
+    // Submission Management
     @PATCH("submission/update")
     suspend fun updateSubmissionStatus(
         @Header("Authorization") token: String,
         @Body submission: SubmissionUpdateRequest
-    ): SubmissionResponse
+    ): Response<SubmissionResponse>
 
     @GET("submission/update")
-    suspend fun getAllSubmissions(@Header("Authorization") token: String): SubmissionListResponse
+    suspend fun getAllSubmissions(
+        @Header("Authorization") token: String
+    ): Response<SubmissionListResponse>
 }

@@ -1,26 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Primary colors -->
+    <!-- Primary Theme Colors -->
     <color name="primary_blue">#2196F3</color>
+    <color name="primary_blue_light">#64B5F6</color>
+    <color name="primary_blue_dark">#1976D2</color>
 
     <!-- Neutral colors -->
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
 
     <!-- Gray scale -->
+    <color name="gray_900">#212121</color>
     <color name="gray_800">#424242</color>
+    <color name="gray_700">#616161</color>
+    <color name="gray_600">#757575</color>
     <color name="gray_500">#9E9E9E</color>
     <color name="gray_400">#BDBDBD</color>
+    <color name="gray_300">#E0E0E0</color>
+    <color name="gray_200">#EEEEEE</color>
+    <color name="gray_100">#F5F5F5</color>
+
+    <!-- Document status colors -->
+    <color name="status_draft">#757575</color>
+    <color name="status_pending">#FB8C00</color>
+    <color name="status_approved">#43A047</color>
+    <color name="status_rejected">#E53935</color>
+    <color name="status_missing">#7B1FA2</color>
+
+    <!-- Button colors -->
+    <color name="button_submit">#4CAF50</color>
+    <color name="button_submit_pressed">#388E3C</color>
+    <color name="button_unsubmit">#FF9800</color>
+    <color name="button_unsubmit_pressed">#F57C00</color>
+    <color name="button_delete">#F44336</color>
+    <color name="button_delete_pressed">#D32F2F</color>
 
     <!-- System colors -->
-    <color name="status_bar">#000000</color>
-    <color name="navigation_bar">#000000</color>
+    <color name="status_bar">@color/black</color>
+    <color name="navigation_bar">@color/black</color>
+    <color name="background">@color/white</color>
+    <color name="surface">@color/white</color>
 
     <!-- Legacy colors (for backward compatibility) -->
     <color name="colorPrimary">@color/primary_blue</color>
     <color name="colorPrimaryDark">@color/status_bar</color>
     <color name="colorAccent">@color/primary_blue</color>
 
+    <!-- Utility colors -->
     <color name="dark_gray">#1E1E1E</color>
     <color name="error_red">#FF5252</color>
+    <color name="success_green">#4CAF50</color>
+    <color name="warning_yellow">#FFC107</color>
+    <color name="info_blue">#2196F3</color>
 </resources>

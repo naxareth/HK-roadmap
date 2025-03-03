@@ -2,55 +2,116 @@ package com.second_year.hkroadmap.Api.Models
 
 import com.google.gson.annotations.SerializedName
 
-
-data class DocumentUploadRequest(
-    val event_id: Int,
-    val requirement_id: Int
-)
-
-// Document delete request model
-data class DocumentDeleteRequest(
-    val event_id: Int,
-    val requirement_id: Int,
-    val document_id: Int
-)
-
-data class ErrorResponse(
-    @SerializedName("message")
-    val message: String
-)
-
-// Document response models
+/**
+ * Main document response model matching backend response structure
+ */
 data class DocumentResponse(
+    @SerializedName("student_id")
+    val student_id: String,
     @SerializedName("document_id")
-    val id: Int,
+    val document_id: Int,
     @SerializedName("event_id")
     val event_id: Int,
     @SerializedName("requirement_id")
     val requirement_id: Int,
-    @SerializedName("student_id")
-    val student_id: String,
     @SerializedName("file_path")
     val file_path: String,
     @SerializedName("upload_at")
     val upload_at: String,
     @SerializedName("status")
+    val status: String,
+    @SerializedName("is_submitted")
+    val is_submitted: Int,
+    @SerializedName("submitted_at")
+    val submitted_at: String?,
+    @SerializedName("event_title")
+    val event_title: String?,
+    @SerializedName("requirement_title")
+    val requirement_title: String?,
+    @SerializedName("requirement_due_date")
+    val requirement_due_date: String?
+)
+
+/**
+ * Response wrapper for list of documents
+ */
+data class DocumentListResponse(
+    @SerializedName("documents")
+    val documents: List<DocumentResponse>
+)
+
+/**
+ * Document upload request model
+ */
+data class DocumentUploadRequest(
+    @SerializedName("event_id")
+    val event_id: Int,
+    @SerializedName("requirement_id")
+    val requirement_id: Int
+)
+
+/**
+ * Document submit request model
+ */
+data class DocumentSubmitRequest(
+    @SerializedName("document_id")
+    val document_id: Int
+)
+
+/**
+ * Document unsubmit request model
+ */
+data class DocumentUnsubmitRequest(
+    @SerializedName("document_id")
+    val document_id: Int
+)
+
+/**
+ * Document delete request model
+ */
+data class DocumentDeleteRequest(
+    @SerializedName("document_id")
+    val document_id: Int
+)
+
+/**
+ * Document status response model
+ */
+data class DocumentStatusResponse(
+    @SerializedName("document_id")
+    val document_id: Int,
+    @SerializedName("status")
     val status: String
 )
 
-// For responses that include metadata
-data class DocumentListResponse(
-    val documents: List<DocumentResponse>,
-    val message: String
-)
+/**
+ * Document status constants
+ */
+object DocumentStatus {
+    const val DRAFT = "draft"
+    const val PENDING = "pending"
+    const val MISSING = "missing"
+    const val APPROVED = "approved"
+    const val REJECTED = "rejected"
+}
 
-// Document upload response
-data class DocumentUploadResponse(
-    val document: DocumentResponse,
-    val message: String
-)
+/**
+ * File upload constants matching backend constraints
+ */
+object FileConstants {
+    const val MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+    val ALLOWED_MIME_TYPES = listOf(
+        "application/pdf",
+        "image/jpeg",
+        "image/png"
+    )
+    const val UPLOAD_DIR = "uploads/"
+}
 
-// Document delete response
-data class DocumentDeleteResponse(
+/**
+ * Error response model
+ */
+data class ErrorResponse(
+    @SerializedName("message")
     val message: String
 )
