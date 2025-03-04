@@ -1,9 +1,13 @@
 package com.second_year.hkroadmap.Adapters
 
+import android.content.Intent
+import android.net.Uri
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
+import android.widget.Toast
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -15,39 +19,71 @@ import java.util.Locale
 
 class DocumentAdapter(
     private val onDeleteClick: (DocumentResponse) -> Unit,
-    private val onViewClick: (DocumentResponse) -> Unit,
-    private val onSubmitClick: (DocumentResponse) -> Unit,
-    private val onUnsubmitClick: (DocumentResponse) -> Unit
+    private val onViewClick: (DocumentResponse) -> Unit
 ) : ListAdapter<DocumentResponse, DocumentAdapter.DocumentViewHolder>(DocumentDiffCallback()) {
-    // ... existing code ...
+
+    private val draftDocumentIds = mutableListOf<Int>()
+    private val pendingDocumentIds = mutableListOf<Int>()
+    private var onDocumentStatusChanged: () -> Unit = {}
+
+    fun setOnDocumentStatusChangedListener(listener: () -> Unit) {
+        onDocumentStatusChanged = listener
+    }
+
     inner class DocumentViewHolder(
         private val binding: ItemDocumentBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(document: DocumentResponse) {
             binding.apply {
+                // Track ALL document IDs based on status, regardless of type
+                when (document.status.lowercase()) {
+                    "draft" -> {
+                        if (!draftDocumentIds.contains(document.document_id)) {
+                            Log.d("DocumentAdapter", "Adding draft document ID: ${document.document_id}, Type: ${document.document_type}")
+                            draftDocumentIds.add(document.document_id)
+                            onDocumentStatusChanged()
+                        }
+                    }
+                    "pending" -> {
+                        if (!pendingDocumentIds.contains(document.document_id)) {
+                            Log.d("DocumentAdapter", "Adding pending document ID: ${document.document_id}, Type: ${document.document_type}")
+                            pendingDocumentIds.add(document.document_id)
+                            onDocumentStatusChanged()
+                        }
+                    }
+                    else -> {
+                        // Remove from both lists if status changes
+                        val wasInDraft = draftDocumentIds.remove(document.document_id)
+                        val wasInPending = pendingDocumentIds.remove(document.document_id)
+                        if (wasInDraft || wasInPending) {
+                            Log.d("DocumentAdapter", "Removing document ID: ${document.document_id} due to status change to: ${document.status}")
+                            onDocumentStatusChanged()
+                        }
+                    }
+                }
+
                 // Format date
                 val uploadDate = formatDate(document.upload_at)
 
-                // Set text fields
-                tvFileName.text = if (document.file_path.isNotEmpty()) {
-                    document.file_path.substringAfterLast("/")
-                } else {
-                    root.context.getString(R.string.no_file_uploaded)
+                // Set text fields based on document type
+                tvFileName.text = when {
+                    document.document_type == "link" -> document.link_url
+                    document.file_path.isNotEmpty() -> document.file_path.substringAfterLast("/")
+                    else -> root.context.getString(R.string.no_file_uploaded)
                 }
-
                 tvFileDate.text = root.context.getString(R.string.uploaded_at, uploadDate)
 
-                // Setup file icon based on file type
+                // Setup file icon based on document type
                 ivFileIcon.setImageResource(
                     when {
+                        document.document_type == "link" -> R.drawable.ic_link
                         document.file_path.isEmpty() -> R.drawable.ic_no_file
-                        document.file_path.lowercase().endsWith(".pdf", true) -> R.drawable.ic_pdf
+                        document.file_path.lowercase().endsWith(".pdf") -> R.drawable.ic_pdf
                         document.file_path.lowercase().let { path ->
-                            path.endsWith(".jpg", true) ||
-                                    path.endsWith(".jpeg", true) ||
-                                    path.endsWith(".png", true)
+                            path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".png")
                         } -> R.drawable.ic_image
+
                         else -> R.drawable.ic_file
                     }
                 )
@@ -55,13 +91,6 @@ class DocumentAdapter(
                 // Setup status chip and menu
                 setupStatusChip(document.status)
                 setupMenu(document)
-
-                // Handle item click for viewing document
-                root.setOnClickListener {
-                    if (document.file_path.isNotEmpty()) {
-                        onViewClick(document)
-                    }
-                }
             }
         }
 
@@ -75,7 +104,6 @@ class DocumentAdapter(
                     "rejected" -> context.getString(R.string.status_rejected)
                     else -> status
                 }
-
                 setChipBackgroundColorResource(
                     when (status.lowercase()) {
                         "draft" -> R.color.status_draft
@@ -91,42 +119,40 @@ class DocumentAdapter(
 
         private fun setupMenu(document: DocumentResponse) {
             binding.btnMenu.apply {
-                when {
-                    document.file_path.isEmpty() -> {
-                        visibility = View.GONE
-                    }
-                    document.status.lowercase() == "draft" -> {
-                        visibility = View.VISIBLE
-                        setOnClickListener { showDraftMenu(it, document) }
-                    }
-                    document.status.lowercase() == "pending" -> {
-                        visibility = View.VISIBLE
-                        setOnClickListener { showPendingMenu(it, document) }
-                    }
-                    else -> {
-                        visibility = View.GONE
-                    }
+                visibility = when {
+                    document.status.lowercase() !in listOf("draft", "pending") -> View.GONE
+                    document.file_path.isEmpty() && document.document_type != "link" -> View.GONE
+                    else -> View.VISIBLE
+                }
+
+                setOnClickListener { anchor ->
+                    showDocumentMenu(anchor, document)
                 }
             }
         }
 
-        private fun showDraftMenu(anchor: View, document: DocumentResponse) {
+        private fun showDocumentMenu(anchor: View, document: DocumentResponse) {
             PopupMenu(anchor.context, anchor).apply {
-                inflate(R.menu.menu_document_draft)
+                // Only show delete option for draft documents
+                if (document.status.lowercase() == "draft") {
+                    menu.add(0, R.id.action_delete, 0, R.string.delete)
+                }
+
+                // Always show view option
+                menu.add(0, R.id.action_view, 1, R.string.view_document)
+
                 setOnMenuItemClickListener { item ->
                     when (item.itemId) {
-                        R.id.action_submit -> {
-                            onSubmitClick(document)
-                            true
-                        }
                         R.id.action_delete -> {
                             onDeleteClick(document)
                             true
                         }
+
                         R.id.action_view -> {
-                            onViewClick(document)
+                            handleDocumentView(anchor, document)
                             true
                         }
+
                         else -> false
                     }
                 }
@@ -134,35 +160,60 @@ class DocumentAdapter(
             }
         }
 
-        private fun showPendingMenu(anchor: View, document: DocumentResponse) {
-            PopupMenu(anchor.context, anchor).apply {
-                inflate(R.menu.menu_document_pending)
-                setOnMenuItemClickListener { item ->
-                    when (item.itemId) {
-                        R.id.action_unsubmit -> {
-                            onUnsubmitClick(document)
-                            true
-                        }
-                        R.id.action_view -> {
-                            onViewClick(document)
-                            true
-                        }
-                        else -> false
-                    }
+        private fun handleDocumentView(anchor: View, document: DocumentResponse) {
+            if (document.document_type == "link") {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(document.link_url))
+                    anchor.context.startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        anchor.context,
+                        anchor.context.getString(R.string.unable_to_open_link),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-                show()
+            } else {
+                onViewClick(document)
             }
         }
+    }
 
-        private fun formatDate(dateString: String): String {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-            return try {
-                val date = inputFormat.parse(dateString)
-                outputFormat.format(date!!)
-            } catch (e: Exception) {
-                dateString
-            }
+    // Get document IDs for API requests
+    fun getDraftDocumentIds(): List<Int> = draftDocumentIds.toList()
+    fun getPendingDocumentIds(): List<Int> = pendingDocumentIds.toList()
+
+    // Get counts
+    fun getDraftCount(): Int = draftDocumentIds.size
+    fun getPendingCount(): Int = pendingDocumentIds.size
+
+    // Clear IDs after successful operations
+    fun clearDraftDocumentIds() {
+        draftDocumentIds.clear()
+        onDocumentStatusChanged()
+    }
+
+    fun clearPendingDocumentIds() {
+        pendingDocumentIds.clear()
+        onDocumentStatusChanged()
+    }
+
+    // Remove specific document ID
+    fun removeDocumentId(documentId: Int) {
+        val wasInDraft = draftDocumentIds.remove(documentId)
+        val wasInPending = pendingDocumentIds.remove(documentId)
+        if (wasInDraft || wasInPending) {
+            onDocumentStatusChanged()
+        }
+    }
+
+    private fun formatDate(dateString: String): String {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+        return try {
+            val date = inputFormat.parse(dateString)
+            outputFormat.format(date!!)
+        } catch (e: Exception) {
+            dateString
         }
     }
 
@@ -179,12 +230,38 @@ class DocumentAdapter(
         holder.bind(getItem(position))
     }
 
+    override fun submitList(list: List<DocumentResponse>?) {
+        Log.d("DocumentAdapter", "Submitting new list with ${list?.size} items")
+        draftDocumentIds.clear()
+        pendingDocumentIds.clear()
+        super.submitList(list)
+
+        // Re-populate IDs after list update
+        list?.forEach { document ->
+            when (document.status.lowercase()) {
+                "draft" -> draftDocumentIds.add(document.document_id)
+                "pending" -> pendingDocumentIds.add(document.document_id)
+            }
+        }
+        Log.d(
+            "DocumentAdapter",
+            "After update - Draft IDs: $draftDocumentIds, Pending IDs: $pendingDocumentIds"
+        )
+        onDocumentStatusChanged()
+    }
+
     private class DocumentDiffCallback : DiffUtil.ItemCallback<DocumentResponse>() {
-        override fun areItemsTheSame(oldItem: DocumentResponse, newItem: DocumentResponse): Boolean {
+        override fun areItemsTheSame(
+            oldItem: DocumentResponse,
+            newItem: DocumentResponse
+        ): Boolean {
             return oldItem.document_id == newItem.document_id
         }
 
-        override fun areContentsTheSame(oldItem: DocumentResponse, newItem: DocumentResponse): Boolean {
+        override fun areContentsTheSame(
+            oldItem: DocumentResponse,
+            newItem: DocumentResponse
+        ): Boolean {
             return oldItem == newItem
         }
     }

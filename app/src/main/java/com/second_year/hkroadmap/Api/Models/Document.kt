@@ -5,6 +5,11 @@ import com.google.gson.annotations.SerializedName
 /**
  * Main document response model matching backend response structure
  */
+
+data class DocumentIdsRequest(
+    @SerializedName("document_ids")
+    val documentIds: List<Int>
+)
 data class DocumentResponse(
     @SerializedName("student_id")
     val student_id: String,
@@ -29,7 +34,11 @@ data class DocumentResponse(
     @SerializedName("requirement_title")
     val requirement_title: String?,
     @SerializedName("requirement_due_date")
-    val requirement_due_date: String?
+    val requirement_due_date: String?,
+    @SerializedName("document_type")
+    val document_type: String, // "file" or "link"
+    @SerializedName("link_url")
+    val link_url: String?
 )
 
 /**

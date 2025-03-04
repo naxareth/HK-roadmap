@@ -52,6 +52,27 @@ interface ApiService {
         @Part("requirement_id") requirementId: RequestBody
     ): Response<DocumentStatusResponse>
 
+    @Multipart
+    @POST("documents/upload")
+    suspend fun uploadLinkDocument(
+        @Header("Authorization") token: String,
+        @Part("event_id") eventId: RequestBody,
+        @Part("requirement_id") requirementId: RequestBody,
+        @Part("link_url") linkUrl: RequestBody
+    ): Response<DocumentStatusResponse>
+
+    @POST("documents/submit-multiple")
+    suspend fun submitMultipleDocuments(
+        @Header("Authorization") token: String,
+        @Body body: DocumentIdsRequest // Use a specific data class instead
+    ): Response<DocumentStatusResponse>
+
+    @POST("documents/unsubmit-multiple")
+    suspend fun unsubmitMultipleDocuments(
+        @Header("Authorization") token: String,
+        @Body body: DocumentIdsRequest // Use a specific data class instead
+    ): Response<DocumentStatusResponse>
+
     @POST("documents/submit")
     suspend fun submitDocument(
         @Header("Authorization") token: String,

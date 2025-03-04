@@ -34,6 +34,7 @@
     <color name="button_unsubmit_pressed">#F57C00</color>
     <color name="button_delete">#F44336</color>
     <color name="button_delete_pressed">#D32F2F</color>
+    <color name="selection_color">#1A2196F3</color>
 
     <!-- System colors -->
     <color name="status_bar">@color/black</color>

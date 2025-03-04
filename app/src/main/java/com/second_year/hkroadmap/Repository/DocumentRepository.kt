@@ -3,6 +3,7 @@ package com.second_year.hkroadmap.Repository
 import android.util.Log
 import com.google.gson.Gson
 import com.second_year.hkroadmap.Api.Interfaces.ApiService
+import com.second_year.hkroadmap.Api.Models.DocumentIdsRequest
 import com.second_year.hkroadmap.Api.Models.DocumentResponse
 import com.second_year.hkroadmap.Api.Models.DocumentStatusResponse
 import com.second_year.hkroadmap.Api.Models.ErrorResponse
@@ -96,6 +97,143 @@ class DocumentRepository(private val apiService: ApiService) {
         } catch (e: Exception) {
             Log.e(TAG, "Exception during upload", e)
             Result.failure(e)
+        }
+    }
+
+    suspend fun uploadLinkDocument(
+        token: String,
+        eventId: Int,
+        requirementId: Int,
+        linkUrl: String
+    ): Result<DocumentStatusResponse> {
+        return try {
+            Log.d(TAG, "Uploading link: $linkUrl")
+
+            val eventIdBody = eventId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+            val requirementIdBody = requirementId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+            val linkUrlBody = linkUrl.toRequestBody("text/plain".toMediaTypeOrNull())
+
+            val response = apiService.uploadLinkDocument(
+                "Bearer $token",
+                eventIdBody,
+                requirementIdBody,
+                linkUrlBody
+            )
+
+            if (response.isSuccessful) {
+                Log.d(TAG, "Link upload successful")
+                Result.success(response.body()!!)
+            } else {
+                Log.e(TAG, "Link upload failed: ${response.errorBody()?.string()}")
+                Result.failure(Exception(response.message()))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception during link upload", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun submitMultipleDocuments(
+        token: String,
+        documentIds: List<Int>
+    ): Result<DocumentStatusResponse> {
+        return try {
+            Log.d(TAG, """
+                Submitting multiple documents:
+                - Document IDs: $documentIds
+                - Token length: ${token.length}
+            """.trimIndent())
+
+            // Use DocumentIdsRequest instead of Map
+            val requestBody = DocumentIdsRequest(documentIds)
+            val response = apiService.submitMultipleDocuments("Bearer $token", requestBody)
+
+            Log.d(TAG, """
+                Submit multiple response:
+                - Status code: ${response.code()}
+                - Is successful: ${response.isSuccessful}
+            """.trimIndent())
+
+            when {
+                response.isSuccessful -> {
+                    response.body()?.let {
+                        Log.d(TAG, "Multiple documents submitted successfully")
+                        Result.success(it)
+                    } ?: run {
+                        Log.e(TAG, "Submit multiple successful but empty response body")
+                        Result.failure(Exception("Empty response body"))
+                    }
+                }
+                else -> {
+                    val errorBody = response.errorBody()?.string()
+                    Log.e(TAG, "Submit multiple failed: $errorBody")
+                    val errorMessage = try {
+                        Gson().fromJson(errorBody, ErrorResponse::class.java).message
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing submit multiple error response", e)
+                        response.message() ?: "Unknown error occurred"
+                    }
+                    Result.failure(Exception(errorMessage))
+                }
+            }
+        } catch (e: HttpException) {
+            Log.e(TAG, "HTTP Exception in submitMultipleDocuments", e)
+            Result.failure(Exception("Network error: ${e.message()}"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in submitMultipleDocuments", e)
+            Result.failure(Exception("Failed to submit documents: ${e.message}"))
+        }
+    }
+
+    suspend fun unsubmitMultipleDocuments(
+        token: String,
+        documentIds: List<Int>
+    ): Result<DocumentStatusResponse> {
+        return try {
+            Log.d(TAG, """
+                Unsubmitting multiple documents:
+                - Document IDs: $documentIds
+                - Token length: ${token.length}
+            """.trimIndent())
+
+            // Use DocumentIdsRequest instead of Map
+            val requestBody = DocumentIdsRequest(documentIds)
+            val response = apiService.unsubmitMultipleDocuments("Bearer $token", requestBody)
+
+            Log.d(TAG, """
+                Unsubmit multiple response:
+                - Status code: ${response.code()}
+                - Is successful: ${response.isSuccessful}
+            """.trimIndent())
+
+            when {
+                response.isSuccessful -> {
+                    response.body()?.let {
+                        Log.d(TAG, "Multiple documents unsubmitted successfully")
+                        Result.success(it)
+                    } ?: run {
+                        Log.e(TAG, "Unsubmit multiple successful but empty response body")
+                        Result.failure(Exception("Empty response body"))
+                    }
+                }
+                else -> {
+                    val errorBody = response.errorBody()?.string()
+                    Log.e(TAG, "Unsubmit multiple failed: $errorBody")
+                    val errorMessage = try {
+                        Gson().fromJson(errorBody, ErrorResponse::class.java).message
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing unsubmit multiple error response", e)
+                        response.message() ?: "Unknown error occurred"
+                    }
+                    Result.failure(Exception(errorMessage))
+                }
+            }
+        } catch (e: HttpException) {
+            Log.e(TAG, "HTTP Exception in unsubmitMultipleDocuments", e)
+            Result.failure(Exception("Network error: ${e.message()}"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in unsubmitMultipleDocuments", e)
+            Result.failure(Exception("Failed to unsubmit documents: ${e.message}"))
         }
     }
 

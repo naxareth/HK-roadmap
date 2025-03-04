@@ -28,9 +28,22 @@
     <string name="submitted_at">Submitted: %s</string>
 
     <!-- Document Actions -->
+
+
+    <string name="invalid_url">Invalid URL format</string>
+    <string name="unable_to_open_link">Unable to open link</string>
+    <string name="add">Add</string>
+    <string name="add_link">Add Link</string>
+    <string name="enter_url">Enter URL</string>
+    <string name="submit_all">Submit All</string>
+    <string name="unsubmit_all">Unsubmit All</string>
+    <string name="submit_multiple_confirmation">Are you sure you want to submit %d documents?</string>
+    <string name="unsubmit_multiple_confirmation">Are you sure you want to unsubmit %d documents?</string>
     <string name="submit_document">Submit Document</string>
     <string name="unsubmit_document">Unsubmit Document</string>
     <string name="view_document">View Document</string>
+    <string name="submit_multiple_success">All documents submitted successfully</string>
+    <string name="unsubmit_multiple_success">All documents unsubmitted successfully</string>
 
     <!-- Requirements -->
     <string name="no_requirements">No requirements found</string>

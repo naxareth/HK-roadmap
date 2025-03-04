@@ -113,9 +113,20 @@
                     android:layout_height="wrap_content"
                     android:text="@string/upload_document"
                     android:textAllCaps="false"
-                    app:icon="@drawable/ic_add"
                     android:backgroundTint="@color/primary_blue"
                     app:iconGravity="textStart" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_add_link"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="ADD LINK"
+                    android:textAllCaps="false"
+                    app:icon="@drawable/ic_link"
+                    android:backgroundTint="@color/primary_blue"
+                    app:iconGravity="textStart" />
+
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_submit"
