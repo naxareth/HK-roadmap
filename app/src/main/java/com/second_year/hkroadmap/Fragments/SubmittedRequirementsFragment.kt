@@ -8,10 +8,12 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.second_year.hkroadmap.Adapters.ExpandableEventAdapter
 import com.second_year.hkroadmap.Adapters.RequirementsTabAdapter
 import com.second_year.hkroadmap.Api.Interfaces.ApiService
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
+import com.second_year.hkroadmap.Api.Models.EventResponse
 import com.second_year.hkroadmap.Api.Models.RequirementItem
 import com.second_year.hkroadmap.Views.DocumentSubmissionActivity
 import com.second_year.hkroadmap.databinding.FragmentSubmittedRequirementsBinding
@@ -20,7 +22,7 @@ import kotlinx.coroutines.launch
 class SubmittedRequirementsFragment : Fragment() {
     private var _binding: FragmentSubmittedRequirementsBinding? = null
     private val binding get() = _binding!!
-    private lateinit var requirementsAdapter: RequirementsTabAdapter
+    private lateinit var eventAdapter: ExpandableEventAdapter
     private lateinit var apiService: ApiService
 
     override fun onCreateView(
@@ -44,21 +46,20 @@ class SubmittedRequirementsFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        requirementsAdapter = RequirementsTabAdapter().apply {
-            setOnItemClickListener { requirement ->
-                Intent(requireContext(), DocumentSubmissionActivity::class.java).also { intent ->
-                    intent.putExtra("event_id", requirement.event_id)
-                    intent.putExtra("requirement_id", requirement.requirement_id)
-                    intent.putExtra("requirement_title", requirement.requirement_name)
-                    intent.putExtra("requirement_due_date", requirement.due_date)
-                    startActivity(intent)
-                }
+        eventAdapter = ExpandableEventAdapter { requirement ->
+            Intent(requireContext(), DocumentSubmissionActivity::class.java).also { intent ->
+                intent.putExtra("event_id", requirement.event_id)
+                intent.putExtra("requirement_id", requirement.requirement_id)
+                intent.putExtra("requirement_title", requirement.requirement_name)
+                intent.putExtra("requirement_desc", requirement.requirement_desc)
+                intent.putExtra("requirement_due_date", requirement.due_date)
+                startActivity(intent)
             }
         }
 
         binding.requirementsRecyclerView.apply {
             layoutManager = LinearLayoutManager(context)
-            adapter = requirementsAdapter
+            adapter = eventAdapter
         }
     }
 
@@ -78,12 +79,11 @@ class SubmittedRequirementsFragment : Fragment() {
                     binding.emptyStateText.text = "No submitted requirements"
                     binding.emptyStateText.visibility = View.VISIBLE
                 } else {
-                    // Group documents by event_id and take the first document from each event
-                    val uniqueEventDocs = submittedDocs.groupBy { it.event_id }
-                        .map { (_, docs) -> docs.first() }
+                    // First group by event_id
+                    val eventGroups = submittedDocs.groupBy { it.event_id }
 
                     // Get all requirements for these events
-                    val eventId = uniqueEventDocs.firstOrNull()?.event_id
+                    val eventId = eventGroups.keys.firstOrNull()
                     val requirements = if (eventId != null) {
                         apiService.getRequirementsByEventId(token, eventId)
                     } else emptyList()
@@ -91,18 +91,39 @@ class SubmittedRequirementsFragment : Fragment() {
                     // Create a map of requirement details by requirement_id
                     val requirementMap = requirements.associateBy { it.requirement_id }
 
-                    // Convert documents to requirements with descriptions
-                    val requirementItems = uniqueEventDocs.map { doc ->
-                        val requirement = requirementMap[doc.requirement_id]
-                        RequirementItem(
-                            requirement_id = doc.requirement_id,
-                            event_id = doc.event_id,
-                            requirement_name = doc.requirement_title ?: "",
-                            requirement_desc = requirement?.requirement_desc ?: "",
-                            due_date = doc.requirement_due_date ?: ""
+                    // Convert to EventWithRequirements objects
+                    val eventsWithReqs = eventGroups.map { (eventId, docs) ->
+                        val firstDoc = docs.first() // Get first doc for event details
+
+                        // Group documents by requirement_id and take first of each group
+                        val uniqueRequirements = docs.groupBy { it.requirement_id }
+                            .map { (_, reqDocs) -> reqDocs.first() }
+
+                        ExpandableEventAdapter.EventWithRequirements(
+                            event = EventResponse(
+                                id = eventId,
+                                title = firstDoc.event_title ?: "Unknown Event",
+                                description = "",
+                                date = firstDoc.requirement_due_date ?: "",
+                                location = "",
+                                created_at = "",
+                                updated_at = ""
+                            ),
+                            requirements = uniqueRequirements.map { doc ->
+                                val requirement = requirementMap[doc.requirement_id]
+                                RequirementItem(
+                                    requirement_id = doc.requirement_id,
+                                    event_id = doc.event_id,
+                                    requirement_name = doc.requirement_title ?: "",
+                                    requirement_desc = requirement?.requirement_desc ?: "",
+                                    due_date = doc.requirement_due_date ?: ""
+                                )
+                            }
                         )
                     }
-                    requirementsAdapter.setRequirements(requirementItems)
+
+                    eventAdapter.setEvents(eventsWithReqs)
+                    binding.requirementsRecyclerView.visibility = View.VISIBLE
                 }
             } catch (e: Exception) {
                 binding.emptyStateText.text = "Error loading submitted requirements"
