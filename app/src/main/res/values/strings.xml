@@ -90,4 +90,6 @@
     <string name="error_opening_document">Error opening document</string>
     <string name="error_file_size">File is too large</string>
     <string name="error_file_type">Invalid file type</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

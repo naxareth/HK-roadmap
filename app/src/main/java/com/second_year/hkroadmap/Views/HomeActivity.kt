@@ -40,6 +40,7 @@ class HomeActivity : AppCompatActivity() {
             setupToolbar()
             setupNavigationDrawer()
             setupRecyclerView()
+            setupViewAllRequirementsButton()
             fetchEvents()
         } catch (e: Exception) {
             logError("Error in onCreate", e)
@@ -79,6 +80,28 @@ class HomeActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             logError("Error setting up navigation drawer", e)
+        }
+    }
+
+    private fun setupViewAllRequirementsButton() {
+        try {
+            binding.viewAllRequirementsBtn.setOnClickListener {
+                Log.d(TAG, "View All Requirements button clicked")
+                navigateToViewRequirements()
+            }
+        } catch (e: Exception) {
+            logError("Error setting up View All Requirements button", e)
+        }
+    }
+
+    private fun navigateToViewRequirements() {
+        try {
+            Intent(this, ViewRequirementsActivity::class.java).also { intent ->
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            logError("Error navigating to View Requirements", e)
+            showToast("Unable to view requirements")
         }
     }
 
