@@ -63,7 +63,7 @@ class MissingRequirementsFragment : Fragment() {
         }
     }
 
-    private fun fetchMissingRequirements() {
+    fun fetchMissingRequirements() {
         binding.progressBar.visibility = View.VISIBLE
         binding.emptyStateText.visibility = View.GONE
 
@@ -72,8 +72,13 @@ class MissingRequirementsFragment : Fragment() {
                 val token = "Bearer ${TokenManager.getToken(requireContext())}"
                 val documents = apiService.getStudentDocuments(token).body()?.documents ?: emptyList()
 
-                // Filter for missing documents
-                val missingDocs = documents.filter { it.status == "missing" }
+                // Filter for missing documents with valid data
+                val missingDocs = documents.filter { doc ->
+                    doc.status == "missing" &&
+                            doc.requirement_id != 0 &&
+                            !doc.requirement_title.isNullOrEmpty() &&
+                            !doc.requirement_due_date.isNullOrEmpty()
+                }
 
                 if (missingDocs.isEmpty()) {
                     binding.emptyStateText.text = "No missing requirements"
@@ -92,12 +97,24 @@ class MissingRequirementsFragment : Fragment() {
                     val requirementMap = requirements.associateBy { it.requirement_id }
 
                     // Convert to EventWithRequirements objects
-                    val eventsWithReqs = eventGroups.map { (eventId, docs) ->
-                        val firstDoc = docs.first() // Get first doc for event details
+                    val eventsWithReqs = eventGroups.mapNotNull { (eventId, docs) ->
+                        // Skip if no valid documents for this event
+                        if (docs.isEmpty()) return@mapNotNull null
+
+                        val firstDoc = docs.first()
+                        // Skip if event title is missing
+                        if (firstDoc.event_title.isNullOrEmpty()) return@mapNotNull null
 
                         // Group documents by requirement_id and take first of each group
                         val uniqueRequirements = docs.groupBy { it.requirement_id }
-                            .map { (_, reqDocs) -> reqDocs.first() }
+                            .mapNotNull { (reqId, reqDocs) ->
+                                // Skip if requirement_id is 0 or invalid
+                                if (reqId == 0) return@mapNotNull null
+                                reqDocs.first()
+                            }
+
+                        // Skip if no valid requirements
+                        if (uniqueRequirements.isEmpty()) return@mapNotNull null
 
                         ExpandableEventAdapter.EventWithRequirements(
                             event = EventResponse(
@@ -109,21 +126,32 @@ class MissingRequirementsFragment : Fragment() {
                                 created_at = "",
                                 updated_at = ""
                             ),
-                            requirements = uniqueRequirements.map { doc ->
+                            requirements = uniqueRequirements.mapNotNull { doc ->
                                 val requirement = requirementMap[doc.requirement_id]
-                                RequirementItem(
-                                    requirement_id = doc.requirement_id,
-                                    event_id = doc.event_id,
-                                    requirement_name = doc.requirement_title ?: "",
-                                    requirement_desc = requirement?.requirement_desc ?: "",
-                                    due_date = doc.requirement_due_date ?: ""
-                                )
+                                // Only create RequirementItem if all required fields exist
+                                if (doc.requirement_id != 0 &&
+                                    !doc.requirement_title.isNullOrEmpty() &&
+                                    !doc.requirement_due_date.isNullOrEmpty()
+                                ) {
+                                    RequirementItem(
+                                        requirement_id = doc.requirement_id,
+                                        event_id = doc.event_id,
+                                        requirement_name = doc.requirement_title,
+                                        requirement_desc = requirement?.requirement_desc ?: "",
+                                        due_date = doc.requirement_due_date
+                                    )
+                                } else null
                             }
                         )
-                    }
+                    }.filter { it.requirements.isNotEmpty() } // Only include events that have valid requirements
 
-                    eventAdapter.setEvents(eventsWithReqs)
-                    binding.requirementsRecyclerView.visibility = View.VISIBLE
+                    if (eventsWithReqs.isEmpty()) {
+                        binding.emptyStateText.text = "No valid missing requirements found"
+                        binding.emptyStateText.visibility = View.VISIBLE
+                    } else {
+                        eventAdapter.setEvents(eventsWithReqs)
+                        binding.requirementsRecyclerView.visibility = View.VISIBLE
+                    }
                 }
             } catch (e: Exception) {
                 binding.emptyStateText.text = "Error loading missing requirements"
