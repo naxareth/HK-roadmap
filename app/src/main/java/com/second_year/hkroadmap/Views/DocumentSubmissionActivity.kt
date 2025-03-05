@@ -44,6 +44,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     private var eventId: Int = 0
     private var requirementId: Int = 0
     private var requirementTitle: String = ""
+    private var requirementDescription: String = "" // Add this line
     private var requirementDueDate: String = ""
 
     companion object {
@@ -72,6 +73,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             eventId = extras.getInt("event_id", 0)
             requirementId = extras.getInt("requirement_id", 0)
             requirementTitle = extras.getString("requirement_title", "")
+            requirementDescription = extras.getString("requirement_desc", "") // Add this line
             requirementDueDate = extras.getString("requirement_due_date", "")
 
             Log.d(TAG, """
@@ -79,6 +81,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                 - Event ID: $eventId
                 - Requirement ID: $requirementId
                 - Title: $requirementTitle
+                - Description: $requirementDescription
                 - Due Date: $requirementDueDate
             """.trimIndent())
         }
@@ -118,10 +121,14 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         }
 
         binding.layoutRequirementDetails.isVisible =
-            requirementTitle.isNotEmpty() || requirementDueDate.isNotEmpty()
+            requirementTitle.isNotEmpty() || requirementDescription.isNotEmpty() || requirementDueDate.isNotEmpty()
 
         if (binding.layoutRequirementDetails.isVisible) {
             binding.tvRequirementTitle.text = requirementTitle
+            binding.tvRequirementDescription.apply {
+                text = requirementDescription
+                isVisible = requirementDescription.isNotEmpty()
+            }
             binding.tvRequirementDueDate.text = getString(R.string.due_date_format, requirementDueDate)
         }
     }

@@ -108,7 +108,14 @@ class RequirementActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         requirementsAdapter = RequirementsAdapter { requirement ->
-            navigateToDocumentSubmission(requirement)
+            Intent(this, DocumentSubmissionActivity::class.java).also { intent ->
+                intent.putExtra("event_id", eventId)
+                intent.putExtra("requirement_id", requirement.requirement_id)
+                intent.putExtra("requirement_title", requirement.requirement_name)
+                intent.putExtra("requirement_desc", requirement.requirement_desc) // Add this line
+                intent.putExtra("requirement_due_date", requirement.due_date)
+                startActivity(intent)
+            }
         }
 
         binding.requirementsRecyclerView.apply {
@@ -121,17 +128,19 @@ class RequirementActivity : AppCompatActivity() {
 
     private fun navigateToDocumentSubmission(requirement: RequirementItem) {
         Log.d(TAG, """
-            Navigating to DocumentSubmission:
-            - Event ID: $eventId
-            - Requirement ID: ${requirement.requirement_id}
-            - Requirement Name: ${requirement.requirement_name}
-            - Due Date: ${requirement.due_date}
-        """.trimIndent())
+        Navigating to DocumentSubmission:
+        - Event ID: $eventId
+        - Requirement ID: ${requirement.requirement_id}
+        - Requirement Name: ${requirement.requirement_name}
+        - Requirement Description: ${requirement.requirement_desc}
+        - Due Date: ${requirement.due_date}
+    """.trimIndent())
 
         Intent(this, DocumentSubmissionActivity::class.java).apply {
             putExtra("event_id", eventId)
             putExtra("requirement_id", requirement.requirement_id)
             putExtra("requirement_title", requirement.requirement_name)
+            putExtra("requirement_desc", requirement.requirement_desc) // Add this line
             putExtra("requirement_due_date", requirement.due_date)
             startActivity(this)
         }

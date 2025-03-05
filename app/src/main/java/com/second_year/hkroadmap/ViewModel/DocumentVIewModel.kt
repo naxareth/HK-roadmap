@@ -13,12 +13,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 class DocumentViewModel(private val documentRepository: DocumentRepository) : ViewModel() {
-
-    companion object {
-        private const val TAG = "DocumentViewModel"
-    }
-
-
     private val _studentDocuments = MutableLiveData<List<DocumentResponse>>()
     val studentDocuments: LiveData<List<DocumentResponse>> = _studentDocuments
 
@@ -31,12 +25,11 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
     private val _successMessage = MutableLiveData<String?>()
     val successMessage: LiveData<String?> = _successMessage
 
-    private val _currentDocument = MutableLiveData<DocumentResponse?>()
-    val currentDocument: LiveData<DocumentResponse?> = _currentDocument
-
-    // Track uploaded document IDs
     private val _uploadedDocumentIds = MutableLiveData<List<Int>>()
     val uploadedDocumentIds: LiveData<List<Int>> = _uploadedDocumentIds
+
+    private val _currentDocument = MutableLiveData<DocumentResponse?>()
+    val currentDocument: LiveData<DocumentResponse?> = _currentDocument
 
     fun getStudentDocuments(token: String) {
         viewModelScope.launch {
@@ -45,7 +38,6 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
                 documentRepository.getStudentDocuments(token).fold(
                     onSuccess = { documents ->
                         _studentDocuments.value = documents
-                        _errorMessage.value = null
                     },
                     onFailure = { exception ->
                         _errorMessage.value = exception.message

@@ -69,25 +69,36 @@ class SubmittedRequirementsFragment : Fragment() {
         lifecycleScope.launch {
             try {
                 val token = "Bearer ${TokenManager.getToken(requireContext())}"
-                val documents = apiService.getStudentDocuments(token).body()?.documents ?: emptyList()
 
-                // Filter for submitted documents (is_submitted = 1)
+                // First get the documents
+                val documents = apiService.getStudentDocuments(token).body()?.documents ?: emptyList()
                 val submittedDocs = documents.filter { it.is_submitted == 1 }
 
                 if (submittedDocs.isEmpty()) {
                     binding.emptyStateText.text = "No submitted requirements"
                     binding.emptyStateText.visibility = View.VISIBLE
                 } else {
-                    // Convert documents to requirements
-                    val requirements = submittedDocs.map { doc ->
+                    // Get all requirements for the event
+                    val eventId = submittedDocs.firstOrNull()?.event_id
+                    val requirements = if (eventId != null) {
+                        apiService.getRequirementsByEventId(token, eventId)
+                    } else emptyList()
+
+                    // Create a map of requirement details by requirement_id
+                    val requirementMap = requirements.associateBy { it.requirement_id }
+
+                    // Convert documents to requirements with descriptions
+                    val requirementItems = submittedDocs.map { doc ->
+                        val requirement = requirementMap[doc.requirement_id]
                         RequirementItem(
                             requirement_id = doc.requirement_id,
                             event_id = doc.event_id,
                             requirement_name = doc.requirement_title ?: "",
+                            requirement_desc = requirement?.requirement_desc ?: "", // Get description from requirements
                             due_date = doc.requirement_due_date ?: ""
                         )
                     }
-                    requirementsAdapter.setRequirements(requirements)
+                    requirementsAdapter.setRequirements(requirementItems)
                 }
             } catch (e: Exception) {
                 binding.emptyStateText.text = "Error loading submitted requirements"

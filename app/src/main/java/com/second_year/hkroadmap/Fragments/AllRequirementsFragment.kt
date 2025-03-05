@@ -49,6 +49,7 @@ class AllRequirementsFragment : Fragment() {
                     intent.putExtra("event_id", requirement.event_id)
                     intent.putExtra("requirement_id", requirement.requirement_id)
                     intent.putExtra("requirement_title", requirement.requirement_name)
+                    intent.putExtra("requirement_desc", requirement.requirement_desc) // Add this line
                     intent.putExtra("requirement_due_date", requirement.due_date)
                     startActivity(intent)
                 }

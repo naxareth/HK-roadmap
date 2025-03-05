@@ -27,6 +27,9 @@
     <string name="not_submitted">Not yet submitted</string>
     <string name="submitted_at">Submitted: %s</string>
 
+    <string name="requirement_description">Description: %s</string>
+    <string name="no_description_available">No description available</string>
+
     <!-- Document Actions -->
 
 

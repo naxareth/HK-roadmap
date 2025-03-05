@@ -11,6 +11,7 @@ data class RequirementItem(
     val requirement_id: Int,
     val event_id: Int,
     val requirement_name: String,
+    val requirement_desc: String, // Add this field
     val due_date: String
 )
 
@@ -18,9 +19,9 @@ data class RequirementResponse(
     val requirement_id: Int,
     val event_id: Int,
     val requirement_name: String,
+    val requirement_desc: String, // Add this field
     val due_date: String,
 )
-
 // Optional wrapper if needed later
 data class RequirementListResponse(
     val requirements: List<RequirementResponse>,

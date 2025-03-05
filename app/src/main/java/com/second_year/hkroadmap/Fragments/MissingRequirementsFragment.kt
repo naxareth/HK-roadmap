@@ -50,6 +50,7 @@ class MissingRequirementsFragment : Fragment() {
                     intent.putExtra("event_id", requirement.event_id)
                     intent.putExtra("requirement_id", requirement.requirement_id)
                     intent.putExtra("requirement_title", requirement.requirement_name)
+                    intent.putExtra("requirement_desc", requirement.requirement_desc) // Add this line
                     intent.putExtra("requirement_due_date", requirement.due_date)
                     startActivity(intent)
                 }
@@ -78,16 +79,27 @@ class MissingRequirementsFragment : Fragment() {
                     binding.emptyStateText.text = "No missing requirements"
                     binding.emptyStateText.visibility = View.VISIBLE
                 } else {
-                    // Convert documents to requirements
-                    val requirements = missingDocs.map { doc ->
+                    // Get all requirements for the event
+                    val eventId = missingDocs.firstOrNull()?.event_id
+                    val requirements = if (eventId != null) {
+                        apiService.getRequirementsByEventId(token, eventId)
+                    } else emptyList()
+
+                    // Create a map of requirement details by requirement_id
+                    val requirementMap = requirements.associateBy { it.requirement_id }
+
+                    // Convert documents to requirements with descriptions
+                    val requirementItems = missingDocs.map { doc ->
+                        val requirement = requirementMap[doc.requirement_id]
                         RequirementItem(
                             requirement_id = doc.requirement_id,
                             event_id = doc.event_id,
                             requirement_name = doc.requirement_title ?: "",
+                            requirement_desc = requirement?.requirement_desc ?: "", // Add this line
                             due_date = doc.requirement_due_date ?: ""
                         )
                     }
-                    requirementsAdapter.setRequirements(requirements)
+                    requirementsAdapter.setRequirements(requirementItems)
                 }
             } catch (e: Exception) {
                 binding.emptyStateText.text = "Error loading missing requirements"
