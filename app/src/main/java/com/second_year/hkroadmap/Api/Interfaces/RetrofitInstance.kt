@@ -11,7 +11,8 @@ import java.net.CookiePolicy
 import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
-    private const val BASE_URL = "http://192.168.0.12:8000/hk-roadmap/"
+    private const val BASE_URL = "http://192.168.0.12:8000/hk-roadmap/"  // Keep original base URL for API
+    private const val UPLOADS_URL = "http://192.168.0.12:8000/uploads/"   // Add separate URL for uploads
     private const val TAG = "RetrofitInstance"
     private const val TIMEOUT_SECONDS = 30L
 
@@ -33,12 +34,11 @@ object RetrofitInstance {
         connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        cookieJar(JavaNetCookieJar(cookieManager)) // Add this line
+        cookieJar(JavaNetCookieJar(cookieManager))
         addInterceptor(logging)
         addInterceptor(networkInterceptor)
         addInterceptor { chain ->
             val request = chain.request()
-
             Log.d(TAG, """
                 Request Details:
                 URL: ${request.url}
@@ -48,18 +48,15 @@ object RetrofitInstance {
 
             try {
                 val response = chain.proceed(request)
-
                 when (response.code) {
                     in 200..299 -> Log.d(TAG, "Successful response: ${response.code}")
                     in 400..499 -> Log.w(TAG, "Client error: ${response.code}")
                     in 500..599 -> Log.e(TAG, "Server error: ${response.code}")
                     else -> Log.w(TAG, "Unexpected response code: ${response.code}")
                 }
-
                 response.body?.let {
                     Log.d(TAG, "Response body available")
                 } ?: Log.w(TAG, "Empty response body")
-
                 response
             } catch (e: Exception) {
                 Log.e(TAG, "Network error: ${e.message}", e)
@@ -78,5 +75,10 @@ object RetrofitInstance {
 
     fun createApiService(): ApiService {
         return retrofit.create(ApiService::class.java)
+    }
+
+    // Add helper method to get uploads URL
+    fun getUploadsUrl(fileName: String): String {
+        return UPLOADS_URL + fileName
     }
 }

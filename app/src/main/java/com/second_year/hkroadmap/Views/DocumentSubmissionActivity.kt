@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -21,12 +22,15 @@ import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.Api.Models.DocumentResponse
 import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.Repository.DocumentRepository
+import com.second_year.hkroadmap.Utils.DocumentDownloadUtils
 import com.second_year.hkroadmap.Utils.DocumentLoggingUtils
 import com.second_year.hkroadmap.Utils.DocumentUploadUtils
+import com.second_year.hkroadmap.Utils.DocumentViewerUtils
 import com.second_year.hkroadmap.Utils.FileUtils
 import com.second_year.hkroadmap.ViewModel.DocumentViewModel
 import com.second_year.hkroadmap.ViewModel.ViewModelFactory
 import com.second_year.hkroadmap.databinding.ActivityDocumentSubmissionBinding
+import kotlinx.coroutines.launch
 import java.io.File
 import java.net.URL
 import java.text.SimpleDateFormat
@@ -350,33 +354,38 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     }
 
     private fun viewDocument(document: DocumentResponse) {
-        try {
-            if (document.document_type == "link") {
+        if (document.document_type == "link") {
+            try {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(document.link_url))
                 startActivity(intent)
-                return
+            } catch (e: Exception) {
+                Log.e(TAG, "Error opening link", e)
+                showError(getString(R.string.unable_to_open_link))
             }
+            return
+        }
 
-            val file = File(document.file_path)
-            if (!file.exists()) {
-                showError(getString(R.string.error_file_not_found))
-                return
+        // Show loading indicator
+        binding.progressBar.isVisible = true
+
+        // Launch coroutine to handle file download and viewing
+        lifecycleScope.launch {
+            try {
+                DocumentViewerUtils.createViewIntent(this@DocumentSubmissionActivity, document).fold(
+                    onSuccess = { intent ->
+                        startActivity(Intent.createChooser(intent, getString(R.string.view_document)))
+                    },
+                    onFailure = { e ->
+                        Log.e(TAG, "Error viewing document", e)
+                        showError(getString(R.string.error_opening_document))
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error viewing document", e)
+                showError(getString(R.string.error_opening_document))
+            } finally {
+                binding.progressBar.isVisible = false
             }
-
-            val uri = FileProvider.getUriForFile(
-                this,
-                "${applicationContext.packageName}.provider",
-                file
-            )
-
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, getMimeType(file))
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(Intent.createChooser(intent, getString(R.string.view_document)))
-        } catch (e: Exception) {
-            Log.e(TAG, "Error viewing document", e)
-            showError(getString(R.string.error_opening_document))
         }
     }
 
@@ -387,6 +396,11 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             "png" -> "image/png"
             else -> "*/*"
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        DocumentDownloadUtils.clearCache(this)
     }
 
     private fun isRequirementOverdue(): Boolean {

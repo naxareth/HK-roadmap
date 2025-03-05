@@ -66,5 +66,7 @@ dependencies {
     implementation ("androidx.constraintlayout:constraintlayout:2.1.3")
     implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.4.1")
 
+    implementation("io.coil-kt:coil:2.5.0")
+
     implementation ("com.google.android.gms:play-services-ads:22.6.0")
 }

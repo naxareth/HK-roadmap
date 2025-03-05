@@ -6,11 +6,14 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
+import coil.transform.RoundedCornersTransformation
 import com.second_year.hkroadmap.Api.Models.DocumentResponse
 import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.databinding.ItemDocumentBinding
@@ -25,6 +28,12 @@ class DocumentAdapter(
     private val draftDocumentIds = mutableListOf<Int>()
     private val pendingDocumentIds = mutableListOf<Int>()
     private var onDocumentStatusChanged: () -> Unit = {}
+
+    companion object {
+        private const val BASE_URL = "http://192.168.0.12:8000/uploads/"
+        private const val THUMBNAIL_SIZE = 120
+        private const val ICON_SIZE = 40
+    }
 
     fun setOnDocumentStatusChangedListener(listener: () -> Unit) {
         onDocumentStatusChanged = listener
@@ -74,23 +83,63 @@ class DocumentAdapter(
                 }
                 tvFileDate.text = root.context.getString(R.string.uploaded_at, uploadDate)
 
-                // Setup file icon based on document type
-                ivFileIcon.setImageResource(
-                    when {
-                        document.document_type == "link" -> R.drawable.ic_link
-                        document.file_path.isEmpty() -> R.drawable.ic_no_file
-                        document.file_path.lowercase().endsWith(".pdf") -> R.drawable.ic_pdf
-                        document.file_path.lowercase().let { path ->
-                            path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".png")
-                        } -> R.drawable.ic_image
-
-                        else -> R.drawable.ic_file
-                    }
-                )
+                // Handle image loading or icon setting
+                setupDocumentImage(document)
 
                 // Setup status chip and menu
                 setupStatusChip(document.status)
                 setupMenu(document)
+            }
+        }
+
+        private fun setupDocumentImage(document: DocumentResponse) {
+            binding.ivFileIcon.apply {
+                if (document.file_path.isNotEmpty() && isImageFile(document.file_path)) {
+                    // Configure image view for thumbnails
+                    layoutParams.width = THUMBNAIL_SIZE.dp
+                    layoutParams.height = THUMBNAIL_SIZE.dp
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+
+                    // Load image using Coil
+                    val imageUrl = BASE_URL + document.file_path.removePrefix("uploads/")
+                    load(imageUrl) {
+                        crossfade(true)
+                        placeholder(R.drawable.ic_image)
+                        error(R.drawable.ic_image)
+                        transformations(RoundedCornersTransformation(8f))
+                        size(THUMBNAIL_SIZE.dp, THUMBNAIL_SIZE.dp)
+                        listener(
+                            onSuccess = { _, _ ->
+                                Log.d("DocumentAdapter", "Image loaded successfully: $imageUrl")
+                            },
+                            onError = { _, error ->
+                                Log.e("DocumentAdapter", "Error loading image: $imageUrl", error.throwable)
+                            }
+                        )
+                    }
+                } else {
+                    // Reset image view for icons
+                    layoutParams.width = ICON_SIZE.dp
+                    layoutParams.height = ICON_SIZE.dp
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+
+                    // Set appropriate icon
+                    setImageResource(
+                        when {
+                            document.document_type == "link" -> R.drawable.ic_link
+                            document.file_path.isEmpty() -> R.drawable.ic_no_file
+                            document.file_path.lowercase().endsWith(".pdf") -> R.drawable.ic_pdf
+                            else -> R.drawable.ic_file
+                        }
+                    )
+                }
+            }
+        }
+
+        private fun isImageFile(filePath: String): Boolean {
+            return filePath.lowercase().let { path ->
+                path.endsWith(".jpg") || path.endsWith(".jpeg") ||
+                        path.endsWith(".png") || path.endsWith(".webp")
             }
         }
 
@@ -147,12 +196,10 @@ class DocumentAdapter(
                             onDeleteClick(document)
                             true
                         }
-
                         R.id.action_view -> {
                             handleDocumentView(anchor, document)
                             true
                         }
-
                         else -> false
                     }
                 }
@@ -176,6 +223,10 @@ class DocumentAdapter(
                 onViewClick(document)
             }
         }
+
+        // Extension property for converting dp to pixels
+        private val Int.dp: Int
+            get() = (this * itemView.context.resources.displayMetrics.density).toInt()
     }
 
     // Get document IDs for API requests
