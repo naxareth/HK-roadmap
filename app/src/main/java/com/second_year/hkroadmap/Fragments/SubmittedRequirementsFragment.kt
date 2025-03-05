@@ -78,8 +78,12 @@ class SubmittedRequirementsFragment : Fragment() {
                     binding.emptyStateText.text = "No submitted requirements"
                     binding.emptyStateText.visibility = View.VISIBLE
                 } else {
-                    // Get all requirements for the event
-                    val eventId = submittedDocs.firstOrNull()?.event_id
+                    // Group documents by event_id and take the first document from each event
+                    val uniqueEventDocs = submittedDocs.groupBy { it.event_id }
+                        .map { (_, docs) -> docs.first() }
+
+                    // Get all requirements for these events
+                    val eventId = uniqueEventDocs.firstOrNull()?.event_id
                     val requirements = if (eventId != null) {
                         apiService.getRequirementsByEventId(token, eventId)
                     } else emptyList()
@@ -88,13 +92,13 @@ class SubmittedRequirementsFragment : Fragment() {
                     val requirementMap = requirements.associateBy { it.requirement_id }
 
                     // Convert documents to requirements with descriptions
-                    val requirementItems = submittedDocs.map { doc ->
+                    val requirementItems = uniqueEventDocs.map { doc ->
                         val requirement = requirementMap[doc.requirement_id]
                         RequirementItem(
                             requirement_id = doc.requirement_id,
                             event_id = doc.event_id,
                             requirement_name = doc.requirement_title ?: "",
-                            requirement_desc = requirement?.requirement_desc ?: "", // Get description from requirements
+                            requirement_desc = requirement?.requirement_desc ?: "",
                             due_date = doc.requirement_due_date ?: ""
                         )
                     }
