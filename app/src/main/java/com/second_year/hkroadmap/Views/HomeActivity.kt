@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -283,5 +284,11 @@ class HomeActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         fetchEvents()
+    }
+
+    //Temporary, remove this if we want to add functionality to the notification icon
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.toolbar_menu, menu)
+        return true
     }
 }

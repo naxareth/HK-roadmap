@@ -26,8 +26,8 @@
                 android:background="@color/white"
                 app:title="HK Roadmap"
                 app:titleTextColor="@android:color/black"
-                app:navigationIcon="@drawable/ic_menu" />
-
+                app:navigationIcon="@drawable/ic_menu"
+                app:menu="@menu/toolbar_menu" />
         </com.google.android.material.appbar.AppBarLayout>
 
         <TextView

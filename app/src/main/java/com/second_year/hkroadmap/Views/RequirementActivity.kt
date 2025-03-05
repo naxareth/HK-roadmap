@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -204,6 +205,30 @@ class RequirementActivity : AppCompatActivity() {
                 true
             }
             else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun setupBottomNavigation() {
+        binding.bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_requirements -> {
+                    // Already on requirements
+                    true
+                }
+                R.id.nav_status -> {
+                    showToast("Status clicked")
+                    true
+                }
+                R.id.nav_profile -> {
+                    showToast("Profile clicked")
+                    true
+                }
+                else -> false
+            }
         }
     }
 
