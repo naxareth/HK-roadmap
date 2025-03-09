@@ -32,7 +32,7 @@
 
     <!-- Document Actions -->
 
-
+    <string name="document_type">Type</string>
     <string name="invalid_url">Invalid URL format</string>
     <string name="unable_to_open_link">Unable to open link</string>
     <string name="add">Add</string>
@@ -47,6 +47,21 @@
     <string name="view_document">View Document</string>
     <string name="submit_multiple_success">All documents submitted successfully</string>
     <string name="unsubmit_multiple_success">All documents unsubmitted successfully</string>
+
+    <!-- Document Status -->
+
+    <string name="document_status">Document Status</string>
+    <string name="all">All</string>
+    <string name="pending">Pending</string>
+    <string name="approved">Approved</string>
+    <string name="rejected">Rejected</string>
+    <string name="no_documents">No documents available</string>
+
+    <string name="all_documents_count">All (%d)</string>
+    <string name="pending_count">Pending (%d)</string>
+    <string name="approved_count">Approved (%d)</string>
+    <string name="rejected_count">Rejected (%d)</string>
+    <string name="error_loading_status">Failed to load document status</string>
 
     <!-- Requirements -->
     <string name="no_requirements">No requirements found</string>

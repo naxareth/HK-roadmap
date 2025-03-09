@@ -16,6 +16,9 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
     private val _studentDocuments = MutableLiveData<List<DocumentResponse>>()
     val studentDocuments: LiveData<List<DocumentResponse>> = _studentDocuments
 
+    private val _filteredDocuments = MutableLiveData<List<DocumentResponse>>()
+    val filteredDocuments: LiveData<List<DocumentResponse>> = _filteredDocuments
+
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
@@ -31,6 +34,8 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
     private val _currentDocument = MutableLiveData<DocumentResponse?>()
     val currentDocument: LiveData<DocumentResponse?> = _currentDocument
 
+    private var currentFilter: String? = null
+
     fun getStudentDocuments(token: String) {
         viewModelScope.launch {
             try {
@@ -38,6 +43,7 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
                 documentRepository.getStudentDocuments(token).fold(
                     onSuccess = { documents ->
                         _studentDocuments.value = documents
+                        applyFilter(currentFilter) // Apply current filter after getting documents
                     },
                     onFailure = { exception ->
                         _errorMessage.value = exception.message
@@ -51,6 +57,70 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
         }
     }
 
+    fun getDocumentsByEventId(token: String, eventId: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                documentRepository.getStudentDocuments(token).fold(
+                    onSuccess = { documents ->
+                        val eventDocuments = documents.filter { it.event_id == eventId }
+                        _studentDocuments.value = eventDocuments
+                        applyFilter(currentFilter)
+                    },
+                    onFailure = { exception ->
+                        _errorMessage.value = exception.message
+                    }
+                )
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun filterDocuments(status: String?) {
+        currentFilter = status
+        applyFilter(status)
+    }
+
+    private fun applyFilter(status: String?) {
+        val documents = _studentDocuments.value ?: emptyList()
+
+        // First, group documents by requirement_id and take the first document for each requirement
+        val uniqueDocuments = documents
+            .groupBy { it.requirement_id }
+            .mapValues { entry -> entry.value.first() }
+            .values
+            .toList()
+
+        // Then apply status filtering
+        _filteredDocuments.value = when (status?.lowercase()) {
+            null, "all", "submitted" -> uniqueDocuments.filter {
+                it.status.lowercase() in listOf("pending", "approved", "rejected")
+            }
+            else -> uniqueDocuments.filter { it.status.lowercase() == status.lowercase() }
+        }
+
+        Log.d("DocumentViewModel", """
+        Filtering documents:
+        - Total documents: ${documents.size}
+        - Unique requirements: ${uniqueDocuments.size}
+        - Filter status: $status
+        - Filtered count: ${_filteredDocuments.value?.size}
+    """.trimIndent())
+    }
+
+    fun getDocumentStatistics(): Map<String, Int> {
+        return _studentDocuments.value
+            ?.groupBy { it.requirement_id } // First group by requirement_id
+            ?.mapValues { it.value.first() } // Take first document from each requirement
+            ?.values
+            ?.groupBy { it.status.lowercase() } // Then group by status
+            ?.mapValues { it.value.size } // Count unique requirements per status
+            ?: emptyMap()
+    }
+
     fun uploadDocument(token: String, file: File, eventId: Int, requirementId: Int) {
         viewModelScope.launch {
             try {
@@ -58,14 +128,12 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
                 documentRepository.uploadDocument(token, file, eventId, requirementId).fold(
                     onSuccess = { response ->
                         _successMessage.value = "Document uploaded successfully"
-                        // Add the new document ID to the list
                         val currentIds = _uploadedDocumentIds.value?.toMutableList() ?: mutableListOf()
                         currentIds.add(response.document_id)
                         _uploadedDocumentIds.value = currentIds
                         getStudentDocuments(token)
                     },
                     onFailure = { exception ->
-                        // Check if there are pending documents
                         val hasPendingDocs = _studentDocuments.value?.any {
                             it.event_id == eventId &&
                                     it.requirement_id == requirementId &&
@@ -94,14 +162,12 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
                 documentRepository.uploadLinkDocument(token, eventId, requirementId, linkUrl).fold(
                     onSuccess = { response ->
                         _successMessage.value = "Link uploaded successfully"
-                        // Add the new document ID to the list
                         val currentIds = _uploadedDocumentIds.value?.toMutableList() ?: mutableListOf()
                         currentIds.add(response.document_id)
                         _uploadedDocumentIds.value = currentIds
                         getStudentDocuments(token)
                     },
                     onFailure = { exception ->
-                        // Check if there are pending documents
                         val hasPendingDocs = _studentDocuments.value?.any {
                             it.event_id == eventId &&
                                     it.requirement_id == requirementId &&
@@ -130,7 +196,6 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
                 documentRepository.submitMultipleDocuments(token, documentIds).fold(
                     onSuccess = { response ->
                         _successMessage.value = "All documents submitted successfully"
-                        // Clear the uploaded document IDs after successful submission
                         _uploadedDocumentIds.value = emptyList()
                         getStudentDocuments(token)
                     },
@@ -151,7 +216,6 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
                 documentRepository.unsubmitMultipleDocuments(token, documentIds).fold(
                     onSuccess = { response ->
                         _successMessage.value = "All documents unsubmitted successfully"
-                        // Clear the uploaded document IDs after successful unsubmission
                         _uploadedDocumentIds.value = emptyList()
                         getStudentDocuments(token)
                     },
@@ -214,7 +278,6 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
                 documentRepository.deleteDocument(token, documentId).fold(
                     onSuccess = { response ->
                         _successMessage.value = "Document deleted successfully"
-                        // Remove the deleted document ID from the list if it exists
                         val currentIds = _uploadedDocumentIds.value?.toMutableList() ?: mutableListOf()
                         currentIds.remove(documentId)
                         _uploadedDocumentIds.value = currentIds
