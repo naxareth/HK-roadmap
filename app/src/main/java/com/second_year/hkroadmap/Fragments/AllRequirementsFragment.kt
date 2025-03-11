@@ -276,7 +276,6 @@ class AllRequirementsFragment : Fragment() {
             Log.e(TAG, "Error redirecting to login", e)
         }
     }
-
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

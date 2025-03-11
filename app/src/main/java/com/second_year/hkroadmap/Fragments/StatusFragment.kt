@@ -13,7 +13,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.DividerItemDecoration
 import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
+import com.google.gson.JsonParseException
 import com.second_year.hkroadmap.Adapters.StatusAdapter
+import com.second_year.hkroadmap.Api.Interfaces.ApiService
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.Api.Models.DocumentResponse
@@ -25,6 +27,7 @@ import com.second_year.hkroadmap.Views.DocumentSubmissionActivity
 import com.second_year.hkroadmap.Views.LoginActivity
 import com.second_year.hkroadmap.databinding.FragmentStatusBinding
 import kotlinx.coroutines.launch
+import java.io.EOFException
 
 class StatusFragment : Fragment() {
     private var _binding: FragmentStatusBinding? = null
@@ -32,6 +35,7 @@ class StatusFragment : Fragment() {
 
     private lateinit var viewModel: DocumentViewModel
     private lateinit var statusAdapter: StatusAdapter
+    private lateinit var apiService: ApiService
 
     private var eventId: Int = -1
     private var studentId: Int = 0
@@ -67,18 +71,70 @@ class StatusFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupDependencies()
-        getStudentId() // Add this function call
-        setupViews()
-        observeViewModel()
-        fetchDocumentStatus()
+        getStudentId()
     }
 
     private fun setupDependencies() {
-        Log.d(TAG, "Setting up dependencies")
-        val apiService = RetrofitInstance.createApiService()
-        val repository = DocumentRepository(apiService)
-        val factory = ViewModelFactory(documentRepository = repository)
-        viewModel = ViewModelProvider(this, factory)[DocumentViewModel::class.java]
+        try {
+            Log.d(TAG, "Setting up dependencies")
+            apiService = RetrofitInstance.createApiService()
+            val repository = DocumentRepository(apiService)
+            val factory = ViewModelFactory(documentRepository = repository)
+            viewModel = ViewModelProvider(this, factory)[DocumentViewModel::class.java]
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up dependencies", e)
+            showError(getString(R.string.error_setup_failed))
+            redirectToLogin()
+        }
+    }
+
+    private fun getStudentId() {
+        val token = TokenManager.getToken(requireContext()) ?: run {
+            Log.d(TAG, "No token found, redirecting to login")
+            redirectToLogin()
+            return
+        }
+
+        binding.progressBar.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            try {
+                val response = apiService.getStudentProfile("Bearer $token")
+                if (response.id == 0) {
+                    Log.e(TAG, "Invalid student ID received")
+                    showError(getString(R.string.error_invalid_student_id))
+                    redirectToLogin()
+                    return@launch
+                }
+
+                studentId = response.id
+                Log.d(TAG, "Retrieved student ID: $studentId")
+
+                setupViews()
+                observeViewModel()
+                fetchDocumentStatus()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting student profile", e)
+                when (e) {
+                    is EOFException -> {
+                        Log.e(TAG, "Empty response from server")
+                        showError(getString(R.string.error_empty_response))
+                        redirectToLogin()
+                    }
+                    is JsonParseException -> {
+                        Log.e(TAG, "Invalid JSON response")
+                        showError(getString(R.string.error_invalid_response))
+                        redirectToLogin()
+                    }
+                    else -> {
+                        showError(getString(R.string.error_loading_profile))
+                        redirectToLogin()
+                    }
+                }
+            } finally {
+                binding.progressBar.visibility = View.GONE
+            }
+        }
     }
 
     private fun setupViews() {
@@ -105,8 +161,7 @@ class StatusFragment : Fragment() {
             when (checkedIds.firstOrNull()?.let { group.findViewById<Chip>(it) }) {
                 binding.chipAll -> {
                     Log.d(TAG, "Filter: All selected")
-                    // Filter out draft and missing statuses
-                    viewModel.filterDocuments("submitted")  // This will be handled in ViewModel
+                    viewModel.filterDocuments("submitted")
                 }
                 binding.chipPending -> {
                     Log.d(TAG, "Filter: Pending selected")
@@ -121,13 +176,11 @@ class StatusFragment : Fragment() {
                     viewModel.filterDocuments("rejected")
                 }
                 null -> {
-                    // If no chip is selected, select "All" by default
                     binding.chipAll.isChecked = true
                 }
             }
         }
 
-        // Set initial selection
         binding.chipAll.isChecked = true
     }
 
@@ -136,14 +189,14 @@ class StatusFragment : Fragment() {
         if (token == null) {
             Log.e(TAG, "No authentication token found")
             showError(getString(R.string.error_auth_required))
-            requireActivity().finish()
+            redirectToLogin()
             return
         }
 
         lifecycleScope.launch {
             try {
                 Log.d(TAG, "Fetching document status for event: $eventId")
-                viewModel.getDocumentsByEventId(token, eventId)  // Remove the "Bearer" prefix
+                viewModel.getDocumentsByEventId(token, eventId)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch document status", e)
                 showError(getString(R.string.error_loading_status))
@@ -152,7 +205,6 @@ class StatusFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        // Observe filtered documents instead of all documents
         viewModel.filteredDocuments.observe(viewLifecycleOwner) { documents ->
             Log.d(TAG, "Filtered documents received: ${documents.size}")
             statusAdapter.submitList(documents)
@@ -182,7 +234,6 @@ class StatusFragment : Fragment() {
     }
 
     private fun updateChipCounts(statistics: Map<String, Int>) {
-        // Filter only submitted documents (pending, approved, rejected)
         val submittedStatuses = listOf("pending", "approved", "rejected")
         val filteredStats = statistics.filterKeys { it in submittedStatuses }
 
@@ -202,62 +253,50 @@ class StatusFragment : Fragment() {
         }
     }
 
-    private fun getStudentId() {
-        val token = TokenManager.getToken(requireContext()) ?: run {
-            showError(getString(R.string.error_auth_required))
-            redirectToLogin()
-            return
-        }
-
-        lifecycleScope.launch {
-            try {
-                val apiService = RetrofitInstance.createApiService()
-                val response = apiService.getStudentProfile("Bearer $token")
-                studentId = response.id
-                Log.d(TAG, "Retrieved student ID: $studentId")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting student profile", e)
-                showError(getString(R.string.error_loading_profile))
-                redirectToLogin()
-            }
-        }
-    }
-
-
     private fun showDocumentDetails(document: DocumentResponse) {
-        if (studentId == 0) {
-            showError(getString(R.string.error_student_id_not_found))
-            return
-        }
+        try {
+            if (studentId == 0) {
+                Log.e(TAG, "Attempting to navigate with invalid student ID")
+                showError(getString(R.string.error_student_id_not_found))
+                return
+            }
 
-        Log.d(TAG, """
-        Navigating to DocumentSubmission:
-        - Document ID: ${document.document_id}
-        - Event ID: ${document.event_id}
-        - Requirement ID: ${document.requirement_id}
-        - Requirement Title: ${document.requirement_title}
-        - Due Date: ${document.requirement_due_date}
-        - Student ID: $studentId
-        """.trimIndent())
+            Log.d(TAG, """
+                Navigating to DocumentSubmission:
+                - Document ID: ${document.document_id}
+                - Event ID: ${document.event_id}
+                - Requirement ID: ${document.requirement_id}
+                - Requirement Title: ${document.requirement_title}
+                - Due Date: ${document.requirement_due_date}
+                - Student ID: $studentId
+            """.trimIndent())
 
-        Intent(requireContext(), DocumentSubmissionActivity::class.java).apply {
-            putExtra("event_id", document.event_id)
-            putExtra("requirement_id", document.requirement_id)
-            putExtra("student_id", studentId)  // Add student_id
-            putExtra("requirement_title", document.requirement_title)
-            putExtra("requirement_desc", "") // If you have requirement description in DocumentResponse, add it here
-            putExtra("requirement_due_date", document.requirement_due_date)
-            startActivity(this)
+            Intent(requireContext(), DocumentSubmissionActivity::class.java).also { intent ->
+                intent.putExtra("event_id", document.event_id)
+                intent.putExtra("requirement_id", document.requirement_id)
+                intent.putExtra("student_id", studentId)
+                intent.putExtra("requirement_title", document.requirement_title)
+                intent.putExtra("requirement_desc", "") // If you have requirement description in DocumentResponse, add it here
+                intent.putExtra("requirement_due_date", document.requirement_due_date)
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error navigating to DocumentSubmissionActivity", e)
+            showError(getString(R.string.error_navigation_failed))
         }
     }
 
-    // Add helper function for login redirection
     private fun redirectToLogin() {
-        startActivity(Intent(requireContext(), LoginActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        })
-        requireActivity().finish()
+        try {
+            startActivity(Intent(requireContext(), LoginActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            })
+            requireActivity().finish()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error redirecting to login", e)
+        }
     }
+
     private fun showError(message: String) {
         Log.e(TAG, "Showing error: $message")
         view?.let {

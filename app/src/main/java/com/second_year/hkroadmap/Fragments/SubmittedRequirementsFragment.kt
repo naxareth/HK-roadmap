@@ -2,28 +2,39 @@ package com.second_year.hkroadmap.Fragments
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.gson.JsonParseException
 import com.second_year.hkroadmap.Adapters.ExpandableEventAdapter
-import com.second_year.hkroadmap.Adapters.RequirementsTabAdapter
 import com.second_year.hkroadmap.Api.Interfaces.ApiService
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.Api.Models.EventResponse
 import com.second_year.hkroadmap.Api.Models.RequirementItem
+import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.Views.DocumentSubmissionActivity
+import com.second_year.hkroadmap.Views.LoginActivity
 import com.second_year.hkroadmap.databinding.FragmentSubmittedRequirementsBinding
 import kotlinx.coroutines.launch
+import java.io.EOFException
 
 class SubmittedRequirementsFragment : Fragment() {
     private var _binding: FragmentSubmittedRequirementsBinding? = null
     private val binding get() = _binding!!
     private lateinit var eventAdapter: ExpandableEventAdapter
     private lateinit var apiService: ApiService
+    private var studentId: Int = 0
+
+    companion object {
+        private const val TAG = "SubmittedReqFragment"
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -37,24 +48,68 @@ class SubmittedRequirementsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupDependencies()
-        setupRecyclerView()
-        fetchSubmittedRequirements()
+        getStudentId()
     }
 
     private fun setupDependencies() {
-        apiService = RetrofitInstance.createApiService()
+        try {
+            apiService = RetrofitInstance.createApiService()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up dependencies", e)
+            showError(getString(R.string.error_setup_failed))
+            redirectToLogin()
+        }
+    }
+
+    private fun getStudentId() {
+        val token = TokenManager.getToken(requireContext()) ?: run {
+            Log.d(TAG, "No token found, redirecting to login")
+            redirectToLogin()
+            return
+        }
+
+        binding.progressBar.isVisible = true
+
+        lifecycleScope.launch {
+            try {
+                val response = apiService.getStudentProfile("Bearer $token")
+                if (response.id == 0) {
+                    Log.e(TAG, "Invalid student ID received")
+                    showError(getString(R.string.error_invalid_student_id))
+                    redirectToLogin()
+                    return@launch
+                }
+
+                studentId = response.id
+                Log.d(TAG, "Retrieved student ID: $studentId")
+
+                setupRecyclerView()
+                fetchSubmittedRequirements()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting student profile", e)
+                when (e) {
+                    is EOFException -> {
+                        Log.e(TAG, "Empty response from server")
+                        showError(getString(R.string.error_empty_response))
+                        redirectToLogin()
+                    }
+                    is JsonParseException -> {
+                        Log.e(TAG, "Invalid JSON response")
+                        showError(getString(R.string.error_invalid_response))
+                        redirectToLogin()
+                    }
+                    else -> {
+                        showError(getString(R.string.error_loading_profile))
+                        redirectToLogin()
+                    }
+                }
+            }
+        }
     }
 
     private fun setupRecyclerView() {
         eventAdapter = ExpandableEventAdapter { requirement ->
-            Intent(requireContext(), DocumentSubmissionActivity::class.java).also { intent ->
-                intent.putExtra("event_id", requirement.event_id)
-                intent.putExtra("requirement_id", requirement.requirement_id)
-                intent.putExtra("requirement_title", requirement.requirement_name)
-                intent.putExtra("requirement_desc", requirement.requirement_desc)
-                intent.putExtra("requirement_due_date", requirement.due_date)
-                startActivity(intent)
-            }
+            navigateToDocumentSubmission(requirement)
         }
 
         binding.requirementsRecyclerView.apply {
@@ -63,18 +118,46 @@ class SubmittedRequirementsFragment : Fragment() {
         }
     }
 
+    private fun navigateToDocumentSubmission(requirement: RequirementItem) {
+        try {
+            if (studentId == 0) {
+                Log.e(TAG, "Attempting to navigate with invalid student ID")
+                showError(getString(R.string.error_student_id_not_found))
+                return
+            }
+
+            Log.d(TAG, """
+                Navigating to DocumentSubmission:
+                - Event ID: ${requirement.event_id}
+                - Requirement ID: ${requirement.requirement_id}
+                - Student ID: $studentId
+                - Requirement Title: ${requirement.requirement_name}
+            """.trimIndent())
+
+            Intent(requireContext(), DocumentSubmissionActivity::class.java).also { intent ->
+                intent.putExtra("event_id", requirement.event_id)
+                intent.putExtra("requirement_id", requirement.requirement_id)
+                intent.putExtra("student_id", studentId)
+                intent.putExtra("requirement_title", requirement.requirement_name)
+                intent.putExtra("requirement_desc", requirement.requirement_desc)
+                intent.putExtra("requirement_due_date", requirement.due_date)
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error navigating to DocumentSubmissionActivity", e)
+            showError(getString(R.string.error_navigation_failed))
+        }
+    }
+
     fun fetchSubmittedRequirements() {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.emptyStateText.visibility = View.GONE
+        binding.progressBar.isVisible = true
+        binding.emptyStateText.isVisible = false
 
         lifecycleScope.launch {
             try {
                 val token = "Bearer ${TokenManager.getToken(requireContext())}"
-
-                // First get the documents
                 val documents = apiService.getStudentDocuments(token).body()?.documents ?: emptyList()
 
-                // Filter for submitted documents with valid data
                 val submittedDocs = documents.filter { doc ->
                     doc.is_submitted == 1 &&
                             doc.requirement_id != 0 &&
@@ -84,38 +167,28 @@ class SubmittedRequirementsFragment : Fragment() {
 
                 if (submittedDocs.isEmpty()) {
                     binding.emptyStateText.text = "No submitted requirements"
-                    binding.emptyStateText.visibility = View.VISIBLE
+                    binding.emptyStateText.isVisible = true
                 } else {
-                    // First group by event_id
                     val eventGroups = submittedDocs.groupBy { it.event_id }
-
-                    // Get all requirements for these events
                     val eventId = eventGroups.keys.firstOrNull()
                     val requirements = if (eventId != null) {
                         apiService.getRequirementsByEventId(token, eventId)
                     } else emptyList()
 
-                    // Create a map of requirement details by requirement_id
                     val requirementMap = requirements.associateBy { it.requirement_id }
 
-                    // Convert to EventWithRequirements objects
                     val eventsWithReqs = eventGroups.mapNotNull { (eventId, docs) ->
-                        // Skip if no valid documents for this event
                         if (docs.isEmpty()) return@mapNotNull null
 
                         val firstDoc = docs.first()
-                        // Skip if event title is missing
                         if (firstDoc.event_title.isNullOrEmpty()) return@mapNotNull null
 
-                        // Group documents by requirement_id and take first of each group
                         val uniqueRequirements = docs.groupBy { it.requirement_id }
                             .mapNotNull { (reqId, reqDocs) ->
-                                // Skip if requirement_id is 0 or invalid
                                 if (reqId == 0) return@mapNotNull null
                                 reqDocs.first()
                             }
 
-                        // Skip if no valid requirements
                         if (uniqueRequirements.isEmpty()) return@mapNotNull null
 
                         ExpandableEventAdapter.EventWithRequirements(
@@ -130,7 +203,6 @@ class SubmittedRequirementsFragment : Fragment() {
                             ),
                             requirements = uniqueRequirements.mapNotNull { doc ->
                                 val requirement = requirementMap[doc.requirement_id]
-                                // Only create RequirementItem if all required fields exist
                                 if (doc.requirement_id != 0 &&
                                     !doc.requirement_title.isNullOrEmpty() &&
                                     !doc.requirement_due_date.isNullOrEmpty()
@@ -145,22 +217,44 @@ class SubmittedRequirementsFragment : Fragment() {
                                 } else null
                             }
                         )
-                    }.filter { it.requirements.isNotEmpty() } // Only include events that have valid requirements
+                    }.filter { it.requirements.isNotEmpty() }
 
                     if (eventsWithReqs.isEmpty()) {
                         binding.emptyStateText.text = "No valid submitted requirements found"
-                        binding.emptyStateText.visibility = View.VISIBLE
+                        binding.emptyStateText.isVisible = true
                     } else {
                         eventAdapter.setEvents(eventsWithReqs)
-                        binding.requirementsRecyclerView.visibility = View.VISIBLE
+                        binding.requirementsRecyclerView.isVisible = true
                     }
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Error fetching submitted requirements", e)
                 binding.emptyStateText.text = "Error loading submitted requirements"
-                binding.emptyStateText.visibility = View.VISIBLE
+                binding.emptyStateText.isVisible = true
             } finally {
-                binding.progressBar.visibility = View.GONE
+                binding.progressBar.isVisible = false
             }
+        }
+    }
+
+    private fun showError(message: String) {
+        try {
+            if (isAdded) {
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing error message", e)
+        }
+    }
+
+    private fun redirectToLogin() {
+        try {
+            startActivity(Intent(requireContext(), LoginActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            })
+            requireActivity().finish()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error redirecting to login", e)
         }
     }
 

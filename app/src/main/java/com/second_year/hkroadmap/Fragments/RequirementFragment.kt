@@ -12,7 +12,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.snackbar.Snackbar
+import com.google.gson.JsonParseException
 import com.second_year.hkroadmap.Adapters.RequirementsAdapter
+import com.second_year.hkroadmap.Api.Interfaces.ApiService
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.Api.Models.RequirementItem
@@ -21,8 +23,10 @@ import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.ViewModel.RequirementViewModel
 import com.second_year.hkroadmap.ViewModel.ViewModelFactory
 import com.second_year.hkroadmap.Views.DocumentSubmissionActivity
+import com.second_year.hkroadmap.Views.LoginActivity
 import com.second_year.hkroadmap.databinding.FragmentRequirementBinding
 import kotlinx.coroutines.launch
+import java.io.EOFException
 
 class RequirementFragment : Fragment() {
     private var _binding: FragmentRequirementBinding? = null
@@ -30,11 +34,13 @@ class RequirementFragment : Fragment() {
 
     private lateinit var viewModel: RequirementViewModel
     private lateinit var requirementsAdapter: RequirementsAdapter
+    private lateinit var apiService: ApiService
 
     private var eventId: Int = -1
     private var eventTitle: String = ""
     private var eventDate: String = ""
     private var eventLocation: String = ""
+    private var studentId: Int = 0
 
     companion object {
         private const val TAG = "RequirementFragment"
@@ -78,17 +84,70 @@ class RequirementFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupDependencies()
-        setupViews()
-        observeViewModel()
-        fetchRequirements()
+        getStudentId()
     }
 
     private fun setupDependencies() {
-        Log.d(TAG, "Setting up dependencies")
-        val apiService = RetrofitInstance.createApiService()
-        val repository = RequirementRepository(apiService)
-        val factory = ViewModelFactory(requirementRepository = repository)
-        viewModel = ViewModelProvider(this, factory)[RequirementViewModel::class.java]
+        try {
+            Log.d(TAG, "Setting up dependencies")
+            apiService = RetrofitInstance.createApiService()
+            val repository = RequirementRepository(apiService)
+            val factory = ViewModelFactory(requirementRepository = repository)
+            viewModel = ViewModelProvider(this, factory)[RequirementViewModel::class.java]
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up dependencies", e)
+            showError(getString(R.string.error_setup_failed))
+            redirectToLogin()
+        }
+    }
+
+    private fun getStudentId() {
+        val token = TokenManager.getToken(requireContext()) ?: run {
+            Log.d(TAG, "No token found, redirecting to login")
+            redirectToLogin()
+            return
+        }
+
+        binding.progressBar.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            try {
+                val response = apiService.getStudentProfile("Bearer $token")
+                if (response.id == 0) {
+                    Log.e(TAG, "Invalid student ID received")
+                    showError(getString(R.string.error_invalid_student_id))
+                    redirectToLogin()
+                    return@launch
+                }
+
+                studentId = response.id
+                Log.d(TAG, "Retrieved student ID: $studentId")
+
+                setupViews()
+                observeViewModel()
+                fetchRequirements()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting student profile", e)
+                when (e) {
+                    is EOFException -> {
+                        Log.e(TAG, "Empty response from server")
+                        showError(getString(R.string.error_empty_response))
+                        redirectToLogin()
+                    }
+                    is JsonParseException -> {
+                        Log.e(TAG, "Invalid JSON response")
+                        showError(getString(R.string.error_invalid_response))
+                        redirectToLogin()
+                    }
+                    else -> {
+                        showError(getString(R.string.error_loading_profile))
+                        redirectToLogin()
+                    }
+                }
+            } finally {
+                binding.progressBar.visibility = View.GONE
+            }
+        }
     }
 
     private fun setupViews() {
@@ -120,15 +179,33 @@ class RequirementFragment : Fragment() {
     }
 
     private fun navigateToDocumentSubmission(requirement: RequirementItem) {
-        Log.d(TAG, "Navigating to DocumentSubmission for requirement: ${requirement.requirement_id}")
+        try {
+            if (studentId == 0) {
+                Log.e(TAG, "Attempting to navigate with invalid student ID")
+                showError(getString(R.string.error_student_id_not_found))
+                return
+            }
 
-        Intent(requireContext(), DocumentSubmissionActivity::class.java).apply {
-            putExtra("event_id", eventId)
-            putExtra("requirement_id", requirement.requirement_id)
-            putExtra("requirement_title", requirement.requirement_name)
-            putExtra("requirement_desc", requirement.requirement_desc)
-            putExtra("requirement_due_date", requirement.due_date)
-            startActivity(this)
+            Log.d(TAG, """
+                Navigating to DocumentSubmission:
+                - Event ID: $eventId
+                - Requirement ID: ${requirement.requirement_id}
+                - Student ID: $studentId
+                - Requirement Title: ${requirement.requirement_name}
+            """.trimIndent())
+
+            Intent(requireContext(), DocumentSubmissionActivity::class.java).also { intent ->
+                intent.putExtra("event_id", eventId)
+                intent.putExtra("requirement_id", requirement.requirement_id)
+                intent.putExtra("student_id", studentId)
+                intent.putExtra("requirement_title", requirement.requirement_name)
+                intent.putExtra("requirement_desc", requirement.requirement_desc)
+                intent.putExtra("requirement_due_date", requirement.due_date)
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error navigating to DocumentSubmissionActivity", e)
+            showError(getString(R.string.error_navigation_failed))
         }
     }
 
@@ -137,7 +214,7 @@ class RequirementFragment : Fragment() {
         if (token == null) {
             Log.e(TAG, "No authentication token found")
             showError(getString(R.string.error_auth_required))
-            requireActivity().finish()
+            redirectToLogin()
             return
         }
 
@@ -170,6 +247,7 @@ class RequirementFragment : Fragment() {
             error?.let {
                 Log.e(TAG, "Error received: $it")
                 showError(it)
+                viewModel.clearError()
             }
         }
     }
@@ -186,6 +264,17 @@ class RequirementFragment : Fragment() {
         Log.e(TAG, "Showing error: $message")
         view?.let {
             Snackbar.make(it, message, Snackbar.LENGTH_LONG).show()
+        }
+    }
+
+    private fun redirectToLogin() {
+        try {
+            startActivity(Intent(requireContext(), LoginActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            })
+            requireActivity().finish()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error redirecting to login", e)
         }
     }
 
