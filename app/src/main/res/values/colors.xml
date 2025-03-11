@@ -42,6 +42,10 @@
     <color name="background">@color/white</color>
     <color name="surface">@color/white</color>
 
+    <color name="student_chip_background">#E3F2FD</color>
+    <color name="admin_chip_background">#FBE9E7</color>
+    <color name="default_chip_background">#F5F5F5</color>
+
     <!-- Legacy colors (for backward compatibility) -->
     <color name="colorPrimary">@color/primary_blue</color>
     <color name="colorPrimaryDark">@color/status_bar</color>

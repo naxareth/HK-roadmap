@@ -1,4 +1,3 @@
-// DocumentViewModel.kt
 package com.second_year.hkroadmap.ViewModel
 
 import android.util.Log
@@ -6,6 +5,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.second_year.hkroadmap.Api.Models.Comment
+import com.second_year.hkroadmap.Api.Models.CommentRequest
+import com.second_year.hkroadmap.Api.Models.CommentUpdateRequest
 import com.second_year.hkroadmap.Api.Models.DocumentResponse
 import com.second_year.hkroadmap.Api.Models.DocumentStatusResponse
 import com.second_year.hkroadmap.Repository.DocumentRepository
@@ -13,6 +15,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 class DocumentViewModel(private val documentRepository: DocumentRepository) : ViewModel() {
+    // Existing document-related LiveData
     private val _studentDocuments = MutableLiveData<List<DocumentResponse>>()
     val studentDocuments: LiveData<List<DocumentResponse>> = _studentDocuments
 
@@ -33,6 +36,13 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
 
     private val _currentDocument = MutableLiveData<DocumentResponse?>()
     val currentDocument: LiveData<DocumentResponse?> = _currentDocument
+
+    // New comment-related LiveData
+    private val _comments = MutableLiveData<List<Comment>>()
+    val comments: LiveData<List<Comment>> = _comments
+
+    private val _isLoadingComments = MutableLiveData<Boolean>()
+    val isLoadingComments: LiveData<Boolean> = _isLoadingComments
 
     private var currentFilter: String? = null
 
@@ -295,6 +305,120 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
         }
     }
 
+    // New comment-related functions
+    fun getComments(token: String, requirementId: Int, studentId: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoadingComments.value = true
+                documentRepository.getComments(token, requirementId, studentId).fold(
+                    onSuccess = { commentsList ->
+                        _comments.value = commentsList
+                    },
+                    onFailure = { exception ->
+                        _errorMessage.value = exception.message
+                    }
+                )
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
+                _isLoadingComments.value = false
+            }
+        }
+    }
+
+    fun addComment(token: String, requirementId: Int, studentId: Int, body: String) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                val comment = CommentRequest(
+                    requirementId = requirementId,
+                    studentId = studentId,
+                    body = body
+                )
+
+                // First add the comment
+                documentRepository.addComment(token, comment).fold(
+                    onSuccess = { response ->
+                        // If successful, refresh the comments list
+                        documentRepository.refreshComments(token, requirementId, studentId).fold(
+                            onSuccess = { comments ->
+                                _comments.value = comments
+                                _successMessage.value = response.message
+                            },
+                            onFailure = { exception ->
+                                _errorMessage.value = exception.message
+                            }
+                        )
+                    },
+                    onFailure = { exception ->
+                        _errorMessage.value = exception.message
+                    }
+                )
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun updateComment(token: String, commentId: Int, body: String, requirementId: Int, studentId: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                val comment = CommentUpdateRequest(commentId, body)
+
+                // First update the comment
+                documentRepository.updateComment(token, comment).fold(
+                    onSuccess = { response ->
+                        // If successful, refresh the comments list
+                        documentRepository.refreshComments(token, requirementId, studentId).fold(
+                            onSuccess = { comments ->
+                                _comments.value = comments
+                                _successMessage.value = response.message
+                            },
+                            onFailure = { exception ->
+                                _errorMessage.value = exception.message
+                            }
+                        )
+                    },
+                    onFailure = { exception ->
+                        _errorMessage.value = exception.message
+                    }
+                )
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun deleteComment(token: String, commentId: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                documentRepository.deleteComment(token, commentId).fold(
+                    onSuccess = {
+                        // Remove comment from the list
+                        val currentComments = _comments.value.orEmpty().toMutableList()
+                        currentComments.removeAll { it.commentId == commentId }
+                        _comments.value = currentComments
+                        _successMessage.value = "Comment deleted successfully"
+                    },
+                    onFailure = { exception ->
+                        _errorMessage.value = exception.message
+                    }
+                )
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "An unexpected error occurred"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    // Existing utility functions
     fun clearMessages() {
         _errorMessage.value = null
         _successMessage.value = null
@@ -310,5 +434,10 @@ class DocumentViewModel(private val documentRepository: DocumentRepository) : Vi
 
     fun clearCurrentDocument() {
         _currentDocument.value = null
+    }
+
+    // New utility function for comments
+    fun clearComments() {
+        _comments.value = emptyList()
     }
 }

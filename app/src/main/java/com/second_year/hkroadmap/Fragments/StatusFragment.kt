@@ -22,6 +22,7 @@ import com.second_year.hkroadmap.Repository.DocumentRepository
 import com.second_year.hkroadmap.ViewModel.DocumentViewModel
 import com.second_year.hkroadmap.ViewModel.ViewModelFactory
 import com.second_year.hkroadmap.Views.DocumentSubmissionActivity
+import com.second_year.hkroadmap.Views.LoginActivity
 import com.second_year.hkroadmap.databinding.FragmentStatusBinding
 import kotlinx.coroutines.launch
 
@@ -33,6 +34,7 @@ class StatusFragment : Fragment() {
     private lateinit var statusAdapter: StatusAdapter
 
     private var eventId: Int = -1
+    private var studentId: Int = 0
 
     companion object {
         private const val TAG = "StatusFragment"
@@ -65,6 +67,7 @@ class StatusFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupDependencies()
+        getStudentId() // Add this function call
         setupViews()
         observeViewModel()
         fetchDocumentStatus()
@@ -199,7 +202,34 @@ class StatusFragment : Fragment() {
         }
     }
 
+    private fun getStudentId() {
+        val token = TokenManager.getToken(requireContext()) ?: run {
+            showError(getString(R.string.error_auth_required))
+            redirectToLogin()
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                val apiService = RetrofitInstance.createApiService()
+                val response = apiService.getStudentProfile("Bearer $token")
+                studentId = response.id
+                Log.d(TAG, "Retrieved student ID: $studentId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting student profile", e)
+                showError(getString(R.string.error_loading_profile))
+                redirectToLogin()
+            }
+        }
+    }
+
+
     private fun showDocumentDetails(document: DocumentResponse) {
+        if (studentId == 0) {
+            showError(getString(R.string.error_student_id_not_found))
+            return
+        }
+
         Log.d(TAG, """
         Navigating to DocumentSubmission:
         - Document ID: ${document.document_id}
@@ -207,16 +237,26 @@ class StatusFragment : Fragment() {
         - Requirement ID: ${document.requirement_id}
         - Requirement Title: ${document.requirement_title}
         - Due Date: ${document.requirement_due_date}
-    """.trimIndent())
+        - Student ID: $studentId
+        """.trimIndent())
 
         Intent(requireContext(), DocumentSubmissionActivity::class.java).apply {
             putExtra("event_id", document.event_id)
             putExtra("requirement_id", document.requirement_id)
+            putExtra("student_id", studentId)  // Add student_id
             putExtra("requirement_title", document.requirement_title)
             putExtra("requirement_desc", "") // If you have requirement description in DocumentResponse, add it here
             putExtra("requirement_due_date", document.requirement_due_date)
             startActivity(this)
         }
+    }
+
+    // Add helper function for login redirection
+    private fun redirectToLogin() {
+        startActivity(Intent(requireContext(), LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
+        requireActivity().finish()
     }
     private fun showError(message: String) {
         Log.e(TAG, "Showing error: $message")

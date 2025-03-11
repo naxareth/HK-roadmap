@@ -3,17 +3,12 @@ package com.second_year.hkroadmap.Repository
 import android.util.Log
 import com.google.gson.Gson
 import com.second_year.hkroadmap.Api.Interfaces.ApiService
-import com.second_year.hkroadmap.Api.Models.DocumentIdsRequest
-import com.second_year.hkroadmap.Api.Models.DocumentResponse
-import com.second_year.hkroadmap.Api.Models.DocumentStatusResponse
-import com.second_year.hkroadmap.Api.Models.ErrorResponse
+import com.second_year.hkroadmap.Api.Models.*
 import com.second_year.hkroadmap.Utils.DocumentUploadUtils
 import retrofit2.HttpException
+import retrofit2.Response
 import java.io.File
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 
 class DocumentRepository(private val apiService: ApiService) {
@@ -21,32 +16,14 @@ class DocumentRepository(private val apiService: ApiService) {
         private const val TAG = "DocumentRepository"
     }
 
+    // Document Management Methods
     suspend fun getStudentDocuments(token: String): Result<List<DocumentResponse>> {
         return try {
             Log.d(TAG, "Fetching student documents with token length: ${token.length}")
-
             val response = apiService.getStudentDocuments("Bearer $token")
-
-            Log.d(TAG, "Student documents response code: ${response.code()}")
-
-            if (response.isSuccessful) {
-                val documentList = response.body()?.documents ?: emptyList()
-                Log.d(TAG, "Retrieved ${documentList.size} documents")
-                Result.success(documentList)
-            } else {
-                val errorBody = response.errorBody()?.string()
-                Log.e(TAG, "Error fetching documents: $errorBody")
-                val errorMessage = try {
-                    Gson().fromJson(errorBody, ErrorResponse::class.java).message
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing error response", e)
-                    response.message() ?: "Unknown error occurred"
-                }
-                Result.failure(Exception(errorMessage))
-            }
+            handleResponse(response) { it.documents ?: emptyList() }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in getStudentDocuments", e)
-            Result.failure(e)
+            logAndWrapError("getStudentDocuments", e)
         }
     }
 
@@ -73,30 +50,16 @@ class DocumentRepository(private val apiService: ApiService) {
                 return Result.failure(Exception(error))
             }
 
-            // Create other parts
-            val eventIdBody = eventId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-            val requirementIdBody = requirementId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-
-            Log.d(TAG, "Sending upload request to server")
             val response = apiService.uploadDocument(
                 "Bearer $token",
                 filePart,
-                eventIdBody,
-                requirementIdBody
+                eventId.toString().toRequestBody("text/plain".toMediaTypeOrNull()),
+                requirementId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
             )
 
-            Log.d(TAG, "Upload response code: ${response.code()}")
-
-            if (response.isSuccessful) {
-                Log.d(TAG, "Upload successful: ${response.body()}")
-                Result.success(response.body()!!)
-            } else {
-                Log.e(TAG, "Upload failed: ${response.errorBody()?.string()}")
-                Result.failure(Exception(response.message()))
-            }
+            handleResponse(response)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception during upload", e)
-            Result.failure(e)
+            logAndWrapError("uploadDocument", e)
         }
     }
 
@@ -107,29 +70,16 @@ class DocumentRepository(private val apiService: ApiService) {
         linkUrl: String
     ): Result<DocumentStatusResponse> {
         return try {
-            Log.d(TAG, "Uploading link: $linkUrl")
-
-            val eventIdBody = eventId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-            val requirementIdBody = requirementId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
-            val linkUrlBody = linkUrl.toRequestBody("text/plain".toMediaTypeOrNull())
-
+            Log.d(TAG, "Uploading link document: $linkUrl")
             val response = apiService.uploadLinkDocument(
                 "Bearer $token",
-                eventIdBody,
-                requirementIdBody,
-                linkUrlBody
+                eventId.toString().toRequestBody("text/plain".toMediaTypeOrNull()),
+                requirementId.toString().toRequestBody("text/plain".toMediaTypeOrNull()),
+                linkUrl.toRequestBody("text/plain".toMediaTypeOrNull())
             )
-
-            if (response.isSuccessful) {
-                Log.d(TAG, "Link upload successful")
-                Result.success(response.body()!!)
-            } else {
-                Log.e(TAG, "Link upload failed: ${response.errorBody()?.string()}")
-                Result.failure(Exception(response.message()))
-            }
+            handleResponse(response)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception during link upload", e)
-            Result.failure(e)
+            logAndWrapError("uploadLinkDocument", e)
         }
     }
 
@@ -138,50 +88,14 @@ class DocumentRepository(private val apiService: ApiService) {
         documentIds: List<Int>
     ): Result<DocumentStatusResponse> {
         return try {
-            Log.d(TAG, """
-                Submitting multiple documents:
-                - Document IDs: $documentIds
-                - Token length: ${token.length}
-            """.trimIndent())
-
-            // Use DocumentIdsRequest instead of Map
-            val requestBody = DocumentIdsRequest(documentIds)
-            val response = apiService.submitMultipleDocuments("Bearer $token", requestBody)
-
-            Log.d(TAG, """
-                Submit multiple response:
-                - Status code: ${response.code()}
-                - Is successful: ${response.isSuccessful}
-            """.trimIndent())
-
-            when {
-                response.isSuccessful -> {
-                    response.body()?.let {
-                        Log.d(TAG, "Multiple documents submitted successfully")
-                        Result.success(it)
-                    } ?: run {
-                        Log.e(TAG, "Submit multiple successful but empty response body")
-                        Result.failure(Exception("Empty response body"))
-                    }
-                }
-                else -> {
-                    val errorBody = response.errorBody()?.string()
-                    Log.e(TAG, "Submit multiple failed: $errorBody")
-                    val errorMessage = try {
-                        Gson().fromJson(errorBody, ErrorResponse::class.java).message
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing submit multiple error response", e)
-                        response.message() ?: "Unknown error occurred"
-                    }
-                    Result.failure(Exception(errorMessage))
-                }
-            }
-        } catch (e: HttpException) {
-            Log.e(TAG, "HTTP Exception in submitMultipleDocuments", e)
-            Result.failure(Exception("Network error: ${e.message()}"))
+            Log.d(TAG, "Submitting multiple documents: $documentIds")
+            val response = apiService.submitMultipleDocuments(
+                "Bearer $token",
+                DocumentIdsRequest(documentIds)
+            )
+            handleResponse(response)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in submitMultipleDocuments", e)
-            Result.failure(Exception("Failed to submit documents: ${e.message}"))
+            logAndWrapError("submitMultipleDocuments", e)
         }
     }
 
@@ -190,181 +104,182 @@ class DocumentRepository(private val apiService: ApiService) {
         documentIds: List<Int>
     ): Result<DocumentStatusResponse> {
         return try {
-            Log.d(TAG, """
-                Unsubmitting multiple documents:
-                - Document IDs: $documentIds
-                - Token length: ${token.length}
-            """.trimIndent())
-
-            // Use DocumentIdsRequest instead of Map
-            val requestBody = DocumentIdsRequest(documentIds)
-            val response = apiService.unsubmitMultipleDocuments("Bearer $token", requestBody)
-
-            Log.d(TAG, """
-                Unsubmit multiple response:
-                - Status code: ${response.code()}
-                - Is successful: ${response.isSuccessful}
-            """.trimIndent())
-
-            when {
-                response.isSuccessful -> {
-                    response.body()?.let {
-                        Log.d(TAG, "Multiple documents unsubmitted successfully")
-                        Result.success(it)
-                    } ?: run {
-                        Log.e(TAG, "Unsubmit multiple successful but empty response body")
-                        Result.failure(Exception("Empty response body"))
-                    }
-                }
-                else -> {
-                    val errorBody = response.errorBody()?.string()
-                    Log.e(TAG, "Unsubmit multiple failed: $errorBody")
-                    val errorMessage = try {
-                        Gson().fromJson(errorBody, ErrorResponse::class.java).message
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing unsubmit multiple error response", e)
-                        response.message() ?: "Unknown error occurred"
-                    }
-                    Result.failure(Exception(errorMessage))
-                }
-            }
-        } catch (e: HttpException) {
-            Log.e(TAG, "HTTP Exception in unsubmitMultipleDocuments", e)
-            Result.failure(Exception("Network error: ${e.message()}"))
+            Log.d(TAG, "Unsubmitting multiple documents: $documentIds")
+            val response = apiService.unsubmitMultipleDocuments(
+                "Bearer $token",
+                DocumentIdsRequest(documentIds)
+            )
+            handleResponse(response)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in unsubmitMultipleDocuments", e)
-            Result.failure(Exception("Failed to unsubmit documents: ${e.message}"))
+            logAndWrapError("unsubmitMultipleDocuments", e)
         }
     }
 
-    suspend fun submitDocument(token: String, documentId: Int): Result<DocumentStatusResponse> {
+    suspend fun submitDocument(
+        token: String,
+        documentId: Int
+    ): Result<DocumentStatusResponse> {
         return try {
             Log.d(TAG, "Submitting document: $documentId")
-
-            val requestBody = mapOf("document_id" to documentId)
-            val response = apiService.submitDocument("Bearer $token", requestBody)
-
-            Log.d(TAG, "Submit response code: ${response.code()}")
-
-            when {
-                response.isSuccessful -> {
-                    response.body()?.let {
-                        Log.d(TAG, "Document submitted successfully: ${it.document_id}")
-                        Result.success(it)
-                    } ?: run {
-                        Log.e(TAG, "Submit successful but empty response body")
-                        Result.failure(Exception("Empty response body"))
-                    }
-                }
-                else -> {
-                    val errorBody = response.errorBody()?.string()
-                    Log.e(TAG, "Submit failed: $errorBody")
-                    val errorMessage = try {
-                        Gson().fromJson(errorBody, ErrorResponse::class.java).message
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing submit error response", e)
-                        response.message() ?: "Unknown error occurred"
-                    }
-                    Result.failure(Exception(errorMessage))
-                }
-            }
+            val response = apiService.submitDocument(
+                "Bearer $token",
+                mapOf("document_id" to documentId)
+            )
+            handleResponse(response)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in submitDocument", e)
-            Result.failure(e)
+            logAndWrapError("submitDocument", e)
         }
     }
 
-    suspend fun unsubmitDocument(token: String, documentId: Int): Result<DocumentStatusResponse> {
+    suspend fun unsubmitDocument(
+        token: String,
+        documentId: Int
+    ): Result<DocumentStatusResponse> {
         return try {
-            Log.d(TAG, """
-                Unsubmit request:
-                - Document ID: $documentId
-                - Token length: ${token.length}
-            """.trimIndent())
-
-            val requestBody = mapOf("document_id" to documentId)
-            val response = apiService.unsubmitDocument("Bearer $token", requestBody)
-
-            Log.d(TAG, """
-                Unsubmit response:
-                - Status code: ${response.code()}
-                - Is successful: ${response.isSuccessful}
-                - Raw response: ${response.raw()}
-            """.trimIndent())
-
-            when {
-                response.isSuccessful -> {
-                    response.body()?.let {
-                        Log.d(TAG, "Document unsubmitted successfully: ${it.document_id}")
-                        Result.success(it)
-                    } ?: run {
-                        Log.e(TAG, "Unsubmit successful but empty response body")
-                        Result.failure(Exception("Empty response body"))
-                    }
-                }
-                response.code() == 500 -> {
-                    val errorBody = response.errorBody()?.string()
-                    Log.e(TAG, "Server error during unsubmit: $errorBody")
-                    val errorMessage = try {
-                        Gson().fromJson(errorBody, ErrorResponse::class.java).message
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing unsubmit error response", e)
-                        "Server error occurred"
-                    }
-                    Result.failure(Exception(errorMessage))
-                }
-                else -> {
-                    val errorBody = response.errorBody()?.string()
-                    Log.e(TAG, "Unsubmit failed with code ${response.code()}: $errorBody")
-                    val message = try {
-                        Gson().fromJson(errorBody, ErrorResponse::class.java).message
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing unsubmit error response", e)
-                        response.message() ?: "Unknown error occurred"
-                    }
-                    Result.failure(Exception(message))
-                }
-            }
-        } catch (e: HttpException) {
-            Log.e(TAG, "HTTP Exception in unsubmitDocument", e)
-            Result.failure(Exception("Network error: ${e.message()}"))
+            Log.d(TAG, "Unsubmitting document: $documentId")
+            val response = apiService.unsubmitDocument(
+                "Bearer $token",
+                mapOf("document_id" to documentId)
+            )
+            handleResponse(response)
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in unsubmitDocument", e)
-            Result.failure(Exception("Failed to unsubmit document: ${e.message}"))
+            logAndWrapError("unsubmitDocument", e)
         }
     }
 
-    suspend fun deleteDocument(token: String, documentId: Int): Result<DocumentStatusResponse> {
+    suspend fun deleteDocument(
+        token: String,
+        documentId: Int
+    ): Result<DocumentStatusResponse> {
         return try {
             Log.d(TAG, "Deleting document: $documentId")
+            val response = apiService.deleteDocument(
+                "Bearer $token",
+                mapOf("document_id" to documentId)
+            )
+            handleResponse(response)
+        } catch (e: Exception) {
+            logAndWrapError("deleteDocument", e)
+        }
+    }
 
-            val requestBody = mapOf("document_id" to documentId)
-            val response = apiService.deleteDocument("Bearer $token", requestBody)
-
-            Log.d(TAG, "Delete response code: ${response.code()}")
-
-            if (response.isSuccessful) {
-                response.body()?.let {
-                    Log.d(TAG, "Document deleted successfully: ${it.document_id}")
-                    Result.success(it)
-                } ?: run {
-                    Log.e(TAG, "Delete successful but empty response body")
-                    Result.failure(Exception("Empty response body"))
-                }
-            } else {
-                val errorBody = response.errorBody()?.string()
-                Log.e(TAG, "Delete failed: $errorBody")
-                val errorMessage = try {
-                    Gson().fromJson(errorBody, ErrorResponse::class.java).message
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing delete error response", e)
-                    response.message() ?: "Unknown error occurred"
-                }
-                Result.failure(Exception(errorMessage))
+    // Comment Management Methods
+    suspend fun getComments(
+        token: String,
+        requirementId: Int,
+        studentId: Int
+    ): Result<List<Comment>> {
+        return try {
+            Log.d(TAG, "Fetching comments for requirement: $requirementId, student: $studentId")
+            val response = apiService.getComments("Bearer $token", requirementId, studentId)
+            handleResponse(response) { commentResponses ->
+                commentResponses.map { mapToComment(it) }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception in deleteDocument", e)
-            Result.failure(e)
+            logAndWrapError("getComments", e)
         }
+    }
+
+    suspend fun addComment(
+        token: String,
+        comment: CommentRequest
+    ): Result<CommentOperationResponse> {
+        return try {
+            Log.d(TAG, "Adding comment for requirement: ${comment.requirementId}")
+            val response = apiService.addComment("Bearer $token", comment)
+            handleResponse(response)
+        } catch (e: Exception) {
+            logAndWrapError("addComment", e)
+        }
+    }
+
+    suspend fun updateComment(
+        token: String,
+        comment: CommentUpdateRequest
+    ): Result<CommentOperationResponse> {
+        return try {
+            Log.d(TAG, "Updating comment: ${comment.commentId}")
+            val response = apiService.updateComment("Bearer $token", comment)
+            handleResponse(response)
+        } catch (e: Exception) {
+            logAndWrapError("updateComment", e)
+        }
+    }
+
+    suspend fun deleteComment(
+        token: String,
+        commentId: Int
+    ): Result<Unit> {
+        return try {
+            Log.d(TAG, "Deleting comment: $commentId")
+            val response = apiService.deleteComment(
+                "Bearer $token",
+                mapOf("comment_id" to commentId)
+            )
+            handleResponse(response)
+        } catch (e: Exception) {
+            logAndWrapError("deleteComment", e)
+        }
+    }
+
+    suspend fun refreshComments(
+        token: String,
+        requirementId: Int,
+        studentId: Int
+    ): Result<List<Comment>> {
+        return getComments(token, requirementId, studentId)
+    }
+
+
+    // Helper Methods
+    private fun <T, R> handleResponse(
+        response: Response<T>,
+        transform: (T) -> R = { it as R }
+    ): Result<R> {
+        return when {
+            response.isSuccessful -> {
+                response.body()?.let {
+                    Result.success(transform(it))
+                } ?: Result.failure(Exception("Empty response body"))
+            }
+            else -> {
+                val errorMessage = parseErrorResponse(response)
+                Result.failure(Exception(errorMessage))
+            }
+        }
+    }
+
+    private fun parseErrorResponse(response: Response<*>): String {
+        val errorBody = response.errorBody()?.string()
+        return try {
+            Gson().fromJson(errorBody, ErrorResponse::class.java).message
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing error response", e)
+            response.message() ?: "Unknown error occurred"
+        }
+    }
+
+    private fun mapToComment(response: CommentResponse): Comment {
+        return Comment(
+            commentId = response.commentId,
+            documentId = response.documentId,
+            requirementId = response.requirementId,
+            studentId = response.studentId,
+            userType = response.userType,
+            userName = response.userName,
+            body = response.body,
+            createdAt = response.createdAt,
+            updatedAt = response.updatedAt,
+            isOwner = response.isOwner
+        )
+    }
+
+    private fun logAndWrapError(operation: String, error: Exception): Result<Nothing> {
+        Log.e(TAG, "Exception in $operation", error)
+        val message = when (error) {
+            is HttpException -> "Network error: ${error.message()}"
+            else -> "Operation failed: ${error.message}"
+        }
+        return Result.failure(Exception(message))
     }
 }

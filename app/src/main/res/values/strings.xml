@@ -63,10 +63,30 @@
     <string name="rejected_count">Rejected (%d)</string>
     <string name="error_loading_status">Failed to load document status</string>
 
+    <!-- Comment-related strings -->
+    <string name="edit_comment">Edit Comment</string>
+    <string name="delete_comment">Delete Comment</string>
+    <string name="delete_comment_confirmation">Are you sure you want to delete this comment?</string>
+    <string name="update">Update</string>
+    <string name="add_comment">Add Comment</string>
+    <string name="no_comments">No comments yet</string>
+    <string name="private_comments">Private Comments</string>
+    <string name="add_comment_hint">Add a private comment</string>
+    <string name="error_editing_comment">Error editing the comment</string>
+    <string name="error_deleting_comment">Error deleting the comment</string>
+
+    <string name="error_empty_comment">Comment cannot be empty</string>
+    <string name="error_invalid_requirement">Invalid requirement or student ID</string>
+
     <!-- Requirements -->
     <string name="no_requirements">No requirements found</string>
     <string name="due_date_format">Due: %s</string>
     <string name="requirements">REQUIREMENTS</string>
+
+    <!-- AllRequirementsFragment Strings -->
+    <string name="error_invalid_student_id">Invalid student ID received. Please try logging in again.</string>
+    <string name="error_empty_response">Server returned empty response. Please try logging in again.</string>
+    <string name="error_invalid_response">Invalid server response. Please try logging in again.</string>
 
     <!-- Confirmation Dialogs -->
     <string name="delete_confirmation_title">Delete Document</string>
@@ -108,6 +128,19 @@
     <string name="error_opening_document">Error opening document</string>
     <string name="error_file_size">File is too large</string>
     <string name="error_file_type">Invalid file type</string>
+
+    <string name="error_loading_profile">Error loading student profile</string>
+    <string name="error_student_id_not_found">Student ID not found. Please try logging in again.</string>
+
+    <string name="error_setup_failed">Failed to set up the screen</string>
+    <string name="error_navigation_failed">Unable to open document submission screen</string>
+    <string name="no_pending_requirements">No pending requirements</string>
+    <string name="no_valid_requirements">No valid requirements found</string>
+    <string name="unknown_event">Unknown Event</string>
+
+
+    <string name="error_missing_data">Missing required data</string>
+    <string name="error_invalid_data">Invalid data received</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

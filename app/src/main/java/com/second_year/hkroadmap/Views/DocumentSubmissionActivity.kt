@@ -1,13 +1,16 @@
 package com.second_year.hkroadmap.Views
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -17,13 +20,14 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
 import com.second_year.hkroadmap.Adapters.DocumentAdapter
+import com.second_year.hkroadmap.Adapters.CommentAdapter
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
+import com.second_year.hkroadmap.Api.Models.Comment
 import com.second_year.hkroadmap.Api.Models.DocumentResponse
 import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.Repository.DocumentRepository
 import com.second_year.hkroadmap.Utils.DocumentDownloadUtils
-import com.second_year.hkroadmap.Utils.DocumentLoggingUtils
 import com.second_year.hkroadmap.Utils.DocumentUploadUtils
 import com.second_year.hkroadmap.Utils.DocumentViewerUtils
 import com.second_year.hkroadmap.Utils.FileUtils
@@ -39,12 +43,15 @@ import java.util.Locale
 
 class DocumentSubmissionActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDocumentSubmissionBinding
-    private lateinit var viewModel: DocumentViewModel
+    private var _viewModel: DocumentViewModel? = null // Change to nullable
+    private val viewModel: DocumentViewModel get() = _viewModel!! // Safe accessor
     private lateinit var documentAdapter: DocumentAdapter
+    private lateinit var commentAdapter: CommentAdapter
     private var eventId: Int = 0
     private var requirementId: Int = 0
+    private var studentId: Int = 0
     private var requirementTitle: String = ""
-    private var requirementDescription: String = "" // Add this line
+    private var requirementDescription: String = ""
     private var requirementDueDate: String = ""
 
     companion object {
@@ -57,41 +64,52 @@ class DocumentSubmissionActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityDocumentSubmissionBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        try {
+            binding = ActivityDocumentSubmissionBinding.inflate(layoutInflater)
+            setContentView(binding.root)
 
-        checkToken()
-        setupIntentExtras()
-        setupDependencies()
-        setupViews()
-        observeViewModel()
-        loadDocuments()
-    }
+            if (!setupIntentExtras()) {
+                finish()
+                return
+            }
 
-    private fun setupIntentExtras() {
-        intent.extras?.let { extras ->
-            eventId = extras.getInt("event_id", 0)
-            requirementId = extras.getInt("requirement_id", 0)
-            requirementTitle = extras.getString("requirement_title", "")
-            requirementDescription = extras.getString("requirement_desc", "") // Add this line
-            requirementDueDate = extras.getString("requirement_due_date", "")
-
-            Log.d(TAG, """
-                Received Extras:
-                - Event ID: $eventId
-                - Requirement ID: $requirementId
-                - Title: $requirementTitle
-                - Description: $requirementDescription
-                - Due Date: $requirementDueDate
-            """.trimIndent())
-        }
-
-        if (eventId == 0 || requirementId == 0) {
-            showError(getString(R.string.error_invalid_ids))
+            setupDependencies()
+            setupViews()
+            observeViewModel()
+            loadDocuments()
+            loadComments()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onCreate", e)
+            showError("Error initializing screen")
             finish()
         }
     }
 
+    private fun setupIntentExtras(): Boolean {
+        return try {
+            intent.extras?.let { extras ->
+                eventId = extras.getInt("event_id", 0)
+                requirementId = extras.getInt("requirement_id", 0)
+                studentId = extras.getInt("student_id", 0)
+                requirementTitle = extras.getString("requirement_title", "")
+                requirementDescription = extras.getString("requirement_desc", "")
+                requirementDueDate = extras.getString("requirement_due_date", "")
+
+                if (eventId == 0 || requirementId == 0 || studentId == 0) {
+                    showError(getString(R.string.error_invalid_ids))
+                    return false
+                }
+                true
+            } ?: run {
+                showError(getString(R.string.error_missing_data))
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up intent extras", e)
+            showError(getString(R.string.error_invalid_data))
+            false
+        }
+    }
     private fun checkToken() {
         if (TokenManager.getToken(this) == null) {
             redirectToLogin()
@@ -99,16 +117,62 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     }
 
     private fun setupDependencies() {
-        val apiService = RetrofitInstance.createApiService()
-        val documentRepository = DocumentRepository(apiService)
-        val factory = ViewModelFactory(documentRepository)
-        viewModel = ViewModelProvider(this, factory)[DocumentViewModel::class.java]
+        try {
+            val apiService = RetrofitInstance.createApiService()
+            val documentRepository = DocumentRepository(apiService)
+            val factory = ViewModelFactory(documentRepository)
+            _viewModel = ViewModelProvider(this, factory)[DocumentViewModel::class.java]
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up dependencies", e)
+            throw e
+        }
     }
 
     private fun setupViews() {
         setupToolbar()
         setupRecyclerView()
+        setupCommentsList()
         setupClickListeners()
+    }
+
+    private fun setupCommentsList() {
+        commentAdapter = CommentAdapter(
+            onEditClick = { comment -> showEditCommentDialog(comment) },
+            onDeleteClick = { comment -> showDeleteCommentConfirmation(comment) }
+        )
+
+        binding.rvComments.apply {
+            layoutManager = LinearLayoutManager(this@DocumentSubmissionActivity)
+            adapter = commentAdapter
+            addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
+        }
+    }
+
+    // New method for loading comments
+    private fun loadComments() {
+        binding.cardComments.isVisible = true
+        binding.commentProgressBar.isVisible = true  // Add this line
+
+        if (requirementId == 0 || studentId == 0) {
+            binding.apply {
+                tvNoComments.isVisible = true
+                rvComments.isVisible = false
+                commentProgressBar.isVisible = false  // Add this line
+                tvNoComments.text = "Invalid requirement or student ID"
+            }
+            return
+        }
+
+        TokenManager.getToken(this)?.let { token ->
+            viewModel.getComments(token, requirementId, studentId)
+        } ?: redirectToLogin()
+    }
+
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        currentFocus?.let {
+            imm.hideSoftInputFromWindow(it.windowToken, 0)
+        }
     }
 
     private fun setupToolbar() {
@@ -139,7 +203,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             onViewClick = { document -> viewDocument(document) }
         ).apply {
             setOnDocumentStatusChangedListener {
-                updateButtonVisibility()
+                updateEmptyState(documentAdapter.itemCount == 0)
             }
         }
 
@@ -150,24 +214,10 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateButtonVisibility() {
-        binding.apply {
-            val hasDraftDocs = documentAdapter.getDraftCount() > 0
-            val hasPendingDocs = documentAdapter.getPendingCount() > 0
-
-            btnSubmit.isVisible = hasDraftDocs
-            btnUnsubmit.isVisible = hasPendingDocs
-
-            Log.d(TAG, """
-                Button Visibility Update:
-                - Draft docs: $hasDraftDocs
-                - Pending docs: $hasPendingDocs
-            """.trimIndent())
-        }
-    }
 
     private fun setupClickListeners() {
         binding.apply {
+            // Existing click listeners remain the same
             btnUploadFile.setOnClickListener {
                 if (isRequirementOverdue()) {
                     showError(getString(R.string.error_past_due))
@@ -200,6 +250,20 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                     return@setOnClickListener
                 }
                 showUnsubmitMultipleConfirmation(pendingIds)
+            }
+
+            // New comment button click listener
+            btnAddComment.setOnClickListener {
+                val commentText = etComment.text.toString().trim()
+                if (commentText.isEmpty()) {
+                    etComment.error = "Comment cannot be empty"
+                    return@setOnClickListener
+                }
+                TokenManager.getToken(this@DocumentSubmissionActivity)?.let { token ->
+                    viewModel.addComment(token, requirementId, studentId, commentText)
+                    etComment.text?.clear()
+                    hideKeyboard()
+                } ?: redirectToLogin()
             }
 
             toolbar.setNavigationOnClickListener {
@@ -279,13 +343,15 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             .setTitle(getString(R.string.add_link))
             .setView(dialogView)
             .setPositiveButton(getString(R.string.add)) { dialog, _ ->
-                val link = linkInput.text.toString()
-                if (link.isNotEmpty()) {
-                    if (isValidUrl(link)) {
-                        uploadLink(link)
-                    } else {
-                        showError(getString(R.string.invalid_url))
-                    }
+                val link = linkInput.text.toString().trim()
+                if (link.isEmpty()) {
+                    linkInput.error = "Link cannot be empty"
+                    return@setPositiveButton
+                }
+                if (isValidUrl(link)) {
+                    uploadLink(link)
+                } else {
+                    showError(getString(R.string.invalid_url))
                 }
                 dialog.dismiss()
             }
@@ -361,6 +427,11 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     }
 
     private fun viewDocument(document: DocumentResponse) {
+        // Remove these lines as they're no longer needed
+        // documentId = document.document_id
+        // viewModel.setCurrentDocument(document)
+        // loadComments()
+
         if (document.document_type == "link") {
             try {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(document.link_url))
@@ -405,10 +476,22 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         }
     }
 
+
+
     override fun onDestroy() {
-        super.onDestroy()
-        DocumentDownloadUtils.clearCache(this)
+        try {
+            _viewModel?.let {
+                DocumentDownloadUtils.clearCache(this)
+                it.clearComments()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onDestroy", e)
+        } finally {
+            _viewModel = null
+            super.onDestroy()
+        }
     }
+
 
     private fun isRequirementOverdue(): Boolean {
         if (requirementDueDate.isEmpty()) return false
@@ -423,7 +506,90 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         }
     }
 
+    private fun showEditCommentDialog(comment: Comment) {
+        try {
+            val dialogView = layoutInflater.inflate(R.layout.dialog_edit_comment, null)
+            val editText = dialogView.findViewById<TextInputEditText>(R.id.et_edit_comment)
+            editText.setText(comment.body)
+
+            val dialog = MaterialAlertDialogBuilder(this)
+                .setTitle(getString(R.string.edit_comment))
+                .setView(dialogView)
+                .setPositiveButton(getString(R.string.update), null) // Set to null initially
+                .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .create()
+
+            dialog.show()
+
+            // Override the positive button click to handle validation
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val newText = editText.text.toString().trim()
+                if (newText.isEmpty()) {
+                    editText.error = getString(R.string.error_empty_comment)
+                    return@setOnClickListener
+                }
+
+                if (newText == comment.body) {
+                    dialog.dismiss()
+                    return@setOnClickListener
+                }
+
+                TokenManager.getToken(this)?.let { token ->
+                    viewModel.updateComment(
+                        token = token,
+                        commentId = comment.commentId,
+                        body = newText,
+                        requirementId = requirementId,  // Add this
+                        studentId = studentId          // Add this
+                    )
+                    hideKeyboard()
+                    dialog.dismiss()
+                } ?: run {
+                    dialog.dismiss()
+                    redirectToLogin()
+                }
+            }
+
+            // Show keyboard automatically
+            editText.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing edit dialog", e)
+            showError(getString(R.string.error_editing_comment))
+        }
+    }
+
+    private fun showDeleteCommentConfirmation(comment: Comment) {
+        try {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(getString(R.string.delete_comment))
+                .setMessage(getString(R.string.delete_comment_confirmation))
+                .setPositiveButton(getString(R.string.delete)) { dialog, _ ->
+                    TokenManager.getToken(this)?.let { token ->
+                        viewModel.deleteComment(token, comment.commentId)
+                        dialog.dismiss()
+                    } ?: run {
+                        dialog.dismiss()
+                        redirectToLogin()
+                    }
+                }
+                .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .setCancelable(true)
+                .show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing delete dialog", e)
+            showError(getString(R.string.error_deleting_comment))
+        }
+    }
+
     private fun observeViewModel() {
+        // Existing observers
         viewModel.studentDocuments.observe(this) { documents ->
             try {
                 Log.d(TAG, "Received ${documents?.size} documents")
@@ -457,6 +623,20 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                 viewModel.clearMessages()
             }
         }
+
+        // New comment observers
+        viewModel.comments.observe(this) { comments ->
+            commentAdapter.submitList(comments)
+            binding.apply {
+                cardComments.isVisible = true  // Keep the card visible
+                tvNoComments.isVisible = comments.isEmpty()
+                rvComments.isVisible = comments.isNotEmpty()
+            }
+        }
+
+        viewModel.isLoadingComments.observe(this) { isLoading ->
+            binding.commentProgressBar.isVisible = isLoading
+        }
     }
 
     private fun loadDocuments() {
@@ -471,6 +651,20 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         binding.apply {
             layoutNoAttachments.isVisible = isEmpty
             rvDocuments.isVisible = !isEmpty
+
+            val hasDraftDocs = documentAdapter.getDraftCount() > 0
+            val hasPendingDocs = documentAdapter.getPendingCount() > 0
+            btnSubmit.isVisible = hasDraftDocs
+            btnUnsubmit.isVisible = hasPendingDocs
+
+            Log.d(TAG, """
+            UI State Update:
+            - Empty state: $isEmpty
+            - Draft docs: $hasDraftDocs
+            - Pending docs: $hasPendingDocs
+            - Requirement ID: $requirementId
+            - Student ID: $studentId
+        """.trimIndent())
         }
     }
 

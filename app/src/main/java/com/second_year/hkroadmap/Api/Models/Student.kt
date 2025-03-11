@@ -1,9 +1,9 @@
 package com.second_year.hkroadmap.Api.Models
 
+import com.google.gson.annotations.SerializedName
+
 data class StudentProfileResponse(
-    val id: Int,
+    @SerializedName("student_id") val id: Int,  // Maps student_id from JSON to id in Kotlin
     val name: String,
-    val email: String,
-    val created_at: String,
-    val updated_at: String
+    val email: String
 )

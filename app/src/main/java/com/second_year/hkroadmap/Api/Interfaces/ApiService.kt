@@ -97,6 +97,32 @@ interface ApiService {
         @Path("id") documentId: Int
     ): Response<DocumentStatusResponse>
 
+    // Comments Management
+    @POST("comments/add")
+    suspend fun addComment(
+        @Header("Authorization") token: String,
+        @Body comment: CommentRequest
+    ): Response<CommentOperationResponse>
+
+    @GET("comments/get")
+    suspend fun getComments(
+        @Header("Authorization") token: String,
+        @Query("requirement_id") requirementId: Int,
+        @Query("student_id") studentId: Int
+    ): Response<List<CommentResponse>>
+
+    @PUT("comments/update")
+    suspend fun updateComment(
+        @Header("Authorization") token: String,
+        @Body comment: CommentUpdateRequest
+    ): Response<CommentOperationResponse>
+
+    @HTTP(method = "DELETE", path = "comments/delete", hasBody = true)
+    suspend fun deleteComment(
+        @Header("Authorization") token: String,
+        @Body body: Map<String, Int>  // {"comment_id": id}
+    ): Response<Unit>
+
     // Event Management
     @GET("event/get")
     suspend fun getEvents(
