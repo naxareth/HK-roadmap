@@ -41,40 +41,43 @@
             android:layout_below="@+id/sampleButton"
             android:layout_marginTop="16dp"/>
 
-        <!-- First Container Box -->
+        <!-- First Container Box (Green) -->
         <TextView
             android:id="@+id/containerBox2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="120dp"
-            android:background="@android:color/darker_gray"
+            android:background="@color/green"
             android:gravity="center"
+            android:elevation="6dp"
             android:padding="70dp"
             android:text="@string/container_box_2"
-            android:textColor="#4E342E" />
+            android:textColor="#FFFFFF" />
 
         <ImageView
             android:id="@+id/imageContainerBox2"
             android:layout_width="50dp"
             android:layout_height="50dp"
+            android:elevation="6dp"
             android:src="@drawable/your_image"
             android:layout_alignRight="@id/containerBox2"
             android:layout_marginRight="16dp"
             android:layout_alignTop="@id/containerBox2"
             android:elevation="8dp"/>
 
-        <!-- Second Container Box -->
+        <!-- Second Container Box (Green) -->
         <TextView
             android:id="@+id/containerBox3"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_below="@id/containerBox2"
             android:layout_marginTop="30dp"
-            android:background="@android:color/darker_gray"
+            android:background="@color/green"
+            android:elevation="6dp"
             android:gravity="center"
             android:padding="70dp"
             android:text="@string/container_box_3"
-            android:textColor="#4E342E" />
+            android:textColor="#FFFFFF" />
 
         <ImageView
             android:id="@+id/imageContainerBox3"
@@ -86,18 +89,18 @@
             android:layout_alignTop="@id/containerBox3"
             android:elevation="8dp"/>
 
-        <!-- Third Container Box -->
+        <!-- Third Container Box (Green) -->
         <TextView
             android:id="@+id/containerBox4"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_below="@id/containerBox3"
             android:layout_marginTop="30dp"
-            android:background="@android:color/darker_gray"
+            android:background="@color/green"
             android:gravity="center"
             android:padding="70dp"
             android:text="@string/container_box_4"
-            android:textColor="#4E342E" />
+            android:textColor="#FFFFFF" />
 
         <ImageView
             android:id="@+id/imageContainerBox4"

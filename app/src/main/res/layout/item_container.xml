@@ -14,7 +14,8 @@
         android:text="@string/container_box_here"
         android:textColor="#4E342E"
         android:layout_marginTop="70dp"
-        android:background="@android:color/darker_gray"
+        android:background="@color/green"
+        android:elevation="6dp"
         android:textSize="16sp"/>
 
     <TextView
@@ -22,10 +23,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="270dp"
-        android:background="@android:color/darker_gray"
+        android:background="@color/green"
         android:gravity="center"
         android:padding="65dp"
         android:text="@string/container_box_here"
+        android:elevation="6dp"
         android:textColor="#4E342E"
         android:textSize="16sp" />
 
@@ -34,10 +36,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="470dp"
-        android:background="@android:color/darker_gray"
+        android:background="@color/green"
         android:gravity="center"
         android:padding="65dp"
         android:text="@string/container_box_here"
+        android:elevation="6dp"
         android:textColor="#4E342E"
         android:textSize="16sp" />
 </RelativeLayout>
