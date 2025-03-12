@@ -16,6 +16,7 @@ import com.second_year.hkroadmap.Adapters.ExpandableEventAdapter
 import com.second_year.hkroadmap.Api.Interfaces.ApiService
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
+import com.second_year.hkroadmap.Api.Models.EventItem
 import com.second_year.hkroadmap.Api.Models.EventResponse
 import com.second_year.hkroadmap.Api.Models.RequirementItem
 import com.second_year.hkroadmap.R
@@ -170,76 +171,55 @@ class AllRequirementsFragment : Fragment() {
                     return@launch
                 }
 
-                Log.d(TAG, "Fetching student documents")
-                val documents = apiService.getStudentDocuments("Bearer $token").body()?.documents
-                    ?: emptyList()
+                // Get all events and their requirements first
+                val events = apiService.getEvents("Bearer $token")
+                val allDocuments = apiService.getStudentDocuments("Bearer $token").body()?.documents ?: emptyList()
 
-                val nonSubmittedDocs = documents.filter { doc ->
-                    doc.is_submitted == 0 &&
-                            doc.requirement_id != 0 &&
-                            !doc.requirement_title.isNullOrEmpty() &&
-                            !doc.requirement_due_date.isNullOrEmpty()
+                // Group documents by requirement ID for quick lookup
+                val documentsByRequirement = allDocuments.groupBy { it.requirement_id }
+
+                val eventsWithReqs = events.mapNotNull { event ->
+                    // Get requirements for this specific event only
+                    val requirements = apiService.getRequirementsByEventId("Bearer $token", event.event_id)
+
+                    // Filter requirements that either:
+                    // 1. Have no documents OR
+                    // 2. Only have documents in draft status (is_submitted = 0)
+                    // 3. Ensure the requirement belongs to this event
+                    val pendingRequirements = requirements.filter { requirement ->
+                        // First verify this requirement belongs to this event
+                        requirement.event_id == event.event_id &&
+                                documentsByRequirement[requirement.requirement_id]?.let { docs ->
+                                    // Only include if all documents are in draft status
+                                    // Explicitly exclude any that have 'missing' status
+                                    docs.isNotEmpty() &&
+                                            docs.all { doc -> doc.status != "missing" } &&
+                                            docs.all { doc -> doc.is_submitted == 0 }
+                                } ?: true  // If no documents exist (null case), include the requirement
+                    }
+
+                    // Only create EventWithRequirements if there are pending requirements for this event
+                    if (pendingRequirements.isEmpty()) {
+                        null
+                    } else {
+                        ExpandableEventAdapter.EventWithRequirements(
+                            event = EventResponse(
+                                id = event.event_id,
+                                title = event.event_name,
+                                description = "",
+                                date = event.date,
+                                location = "",
+                                created_at = "",
+                                updated_at = ""
+                            ),
+                            requirements = pendingRequirements,
+                            isExpanded = false
+                        )
+                    }
                 }
-
-                if (nonSubmittedDocs.isEmpty()) {
-                    Log.d(TAG, "No pending requirements found")
-                    binding.emptyStateText.text = getString(R.string.no_pending_requirements)
-                    binding.emptyStateText.isVisible = true
-                    return@launch
-                }
-
-                val eventGroups = nonSubmittedDocs.groupBy { it.event_id }
-                val eventId = eventGroups.keys.firstOrNull()
-                val requirements = if (eventId != null) {
-                    apiService.getRequirementsByEventId("Bearer $token", eventId)
-                } else emptyList()
-
-                val requirementMap = requirements.associateBy { it.requirement_id }
-
-                val eventsWithReqs = eventGroups.mapNotNull { (eventId, docs) ->
-                    if (docs.isEmpty()) return@mapNotNull null
-
-                    val firstDoc = docs.first()
-                    if (firstDoc.event_title.isNullOrEmpty()) return@mapNotNull null
-
-                    val uniqueRequirements = docs.groupBy { it.requirement_id }
-                        .mapNotNull { (reqId, reqDocs) ->
-                            if (reqId == 0) return@mapNotNull null
-                            reqDocs.first()
-                        }
-
-                    if (uniqueRequirements.isEmpty()) return@mapNotNull null
-
-                    ExpandableEventAdapter.EventWithRequirements(
-                        event = EventResponse(
-                            id = eventId,
-                            title = firstDoc.event_title ?: getString(R.string.unknown_event),
-                            description = "",
-                            date = firstDoc.requirement_due_date ?: "",
-                            location = "",
-                            created_at = "",
-                            updated_at = ""
-                        ),
-                        requirements = uniqueRequirements.mapNotNull { doc ->
-                            val requirement = requirementMap[doc.requirement_id]
-                            if (doc.requirement_id != 0 &&
-                                !doc.requirement_title.isNullOrEmpty() &&
-                                !doc.requirement_due_date.isNullOrEmpty()
-                            ) {
-                                RequirementItem(
-                                    requirement_id = doc.requirement_id,
-                                    event_id = doc.event_id,
-                                    requirement_name = doc.requirement_title,
-                                    requirement_desc = requirement?.requirement_desc ?: "",
-                                    due_date = doc.requirement_due_date
-                                )
-                            } else null
-                        }
-                    )
-                }.filter { it.requirements.isNotEmpty() }
 
                 if (eventsWithReqs.isEmpty()) {
-                    binding.emptyStateText.text = getString(R.string.no_valid_requirements)
+                    binding.emptyStateText.text = getString(R.string.no_pending_requirements)
                     binding.emptyStateText.isVisible = true
                 } else {
                     eventAdapter.setEvents(eventsWithReqs)
