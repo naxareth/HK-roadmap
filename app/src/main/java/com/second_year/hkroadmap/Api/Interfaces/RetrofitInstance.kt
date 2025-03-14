@@ -12,7 +12,8 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
     private const val BASE_URL = "http://192.168.0.12:8000/hk-roadmap/"  // Keep original base URL for API
-    private const val UPLOADS_URL = "http://192.168.0.12:8000/uploads/"   // Add separate URL for uploads
+    private const val UPLOADS_URL = "http://192.168.0.12:8000/uploads/"
+    private const val PROFILE_PICTURES_URL = "http://192.168.0.12:8000/"// Add separate URL for uploads
     private const val TAG = "RetrofitInstance"
     private const val TIMEOUT_SECONDS = 30L
 
@@ -75,6 +76,10 @@ object RetrofitInstance {
 
     fun createApiService(): ApiService {
         return retrofit.create(ApiService::class.java)
+    }
+
+    fun getProfilePictureUrl(fileName: String): String {
+        return PROFILE_PICTURES_URL + fileName
     }
 
     // Add helper method to get uploads URL

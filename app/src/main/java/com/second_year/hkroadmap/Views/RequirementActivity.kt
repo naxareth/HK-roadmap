@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.snackbar.Snackbar
+import com.second_year.hkroadmap.Fragments.ProfileFragment
 import com.second_year.hkroadmap.Fragments.RequirementFragment  // This is the correct import
 import com.second_year.hkroadmap.Fragments.StatusFragment
 import com.second_year.hkroadmap.R
@@ -108,18 +109,30 @@ class RequirementActivity : AppCompatActivity() {
                 R.id.nav_status -> {
                     Log.d(TAG, "Navigation: Status selected")
                     loadStatusFragment()
-                    true // Now returning true since we're implementing it
+                    true
                 }
                 R.id.nav_profile -> {
                     Log.d(TAG, "Navigation: Profile selected")
-                    showMessage("Profile feature coming soon")
-                    false // Return false to prevent selection
+                    loadProfileFragment()
+                    true  // Now returning true since we're implementing it
                 }
                 else -> false
             }
         }
     }
 
+    private fun loadProfileFragment() {
+        Log.d(TAG, "Loading profile fragment")
+        try {
+            val profileFragment = ProfileFragment.newInstance()
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragmentContainer, profileFragment, "profile")
+                .commit()
+            Log.d(TAG, "Profile fragment transaction committed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading profile fragment", e)
+        }
+    }
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {

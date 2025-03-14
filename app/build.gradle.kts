@@ -68,6 +68,8 @@ dependencies {
     implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.4.1")
 
     implementation("io.coil-kt:coil:2.5.0")
+    implementation("androidx.fragment:fragment-ktx:1.6.0")
+    implementation("com.github.bumptech.glide:glide:4.15.1")
 
     implementation ("com.google.android.gms:play-services-ads:22.6.0")
 }

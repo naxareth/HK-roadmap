@@ -1,6 +1,11 @@
 package com.second_year.hkroadmap.Api.Interfaces
 
 import com.second_year.hkroadmap.Api.Models.*
+import com.second_year.hkroadmap.data.models.DepartmentsResponse
+import com.second_year.hkroadmap.data.models.Profile
+import com.second_year.hkroadmap.data.models.ProfileUpdateRequest
+import com.second_year.hkroadmap.data.models.ProfileUpdateResponse
+import com.second_year.hkroadmap.data.models.ProgramsResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -128,6 +133,36 @@ interface ApiService {
     suspend fun getEvents(
         @Header("Authorization") token: String
     ): List<EventItem>
+
+    // Profile Management
+    @GET("profile/get")
+    suspend fun getProfile(
+        @Header("Authorization") token: String
+    ): Response<Profile>
+
+    @POST("profile/update")
+    suspend fun updateProfile(
+        @Header("Authorization") token: String,
+        @Body profileUpdate: ProfileUpdateRequest
+    ): Response<ProfileUpdateResponse>
+
+    @Multipart
+    @POST("profile/update")
+    suspend fun updateProfileWithPicture(
+        @Header("Authorization") token: String,
+        @Part profilePicture: MultipartBody.Part,
+        @Part("profile") profile: RequestBody
+    ): Response<Profile>
+
+    @GET("profile/departments")
+    suspend fun getDepartments(
+        @Header("Authorization") token: String
+    ): Response<DepartmentsResponse>
+
+    @GET("profile/programs")
+    suspend fun getPrograms(
+        @Header("Authorization") token: String
+    ): Response<ProgramsResponse>
 
 
 
