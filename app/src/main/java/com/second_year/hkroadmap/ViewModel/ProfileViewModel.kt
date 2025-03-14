@@ -113,7 +113,14 @@ class ProfileViewModel(
                     profilePicture,
                     profile
                 )
-                handleProfileUpdateResponse(response)
+                if (response.isSuccessful) {
+                    response.body()?.let { updateResponse ->
+                        _profile.value = updateResponse.profile
+                        _error.value = updateResponse.message  // Success message
+                    }
+                } else {
+                    _error.value = "Failed to update profile"
+                }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Unknown error occurred"
             } finally {

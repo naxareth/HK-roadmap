@@ -314,11 +314,11 @@ class ProfileFragment : Fragment() {
             // Convert year level to string format before setting
             profile.yearLevel?.let { yearLevel ->
                 val yearLevelText = when (yearLevel) {
-                    1 -> "1st Year"
-                    2 -> "2nd Year"
-                    3 -> "3rd Year"
-                    4 -> "4th Year"
-                    5 -> "5th Year"
+                    1 -> "1"
+                    2 -> "2"
+                    3 -> "3"
+                    4 -> "4"
+                    5 -> "5"
                     else -> null
                 }
                 yearLevelText?.let {

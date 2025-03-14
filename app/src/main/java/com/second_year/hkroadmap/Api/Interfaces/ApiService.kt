@@ -152,7 +152,7 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Part profilePicture: MultipartBody.Part,
         @Part("profile") profile: RequestBody
-    ): Response<Profile>
+    ): Response<ProfileUpdateResponse>
 
     @GET("profile/departments")
     suspend fun getDepartments(
