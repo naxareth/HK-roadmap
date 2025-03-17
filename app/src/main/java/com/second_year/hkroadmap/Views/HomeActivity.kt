@@ -7,6 +7,8 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -15,6 +17,8 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
+import com.google.android.material.imageview.ShapeableImageView
 import com.second_year.hkroadmap.Adapters.EventsAdapter
 import com.second_year.hkroadmap.Api.Models.EventResponse
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
@@ -42,7 +46,6 @@ class HomeActivity : AppCompatActivity() {
             setContentView(binding.root)
 
             setupToolbar()
-            setupNavigationDrawer()
             setupRecyclerView()
             setupViewAllRequirementsButton()
             setupUnreadNotificationCount()
@@ -52,12 +55,12 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
+
+
     private fun setupToolbar() {
         try {
             setSupportActionBar(binding.toolbar)
             supportActionBar?.apply {
-                setDisplayHomeAsUpEnabled(true)
-                setHomeAsUpIndicator(R.drawable.ic_menu)
                 title = getString(R.string.app_name)
             }
         } catch (e: Exception) {
@@ -133,30 +136,6 @@ class HomeActivity : AppCompatActivity() {
         private const val NOTIFICATION_REQUEST_CODE = 100
     }
 
-    private fun setupNavigationDrawer() {
-        try {
-            drawerLayout = binding.drawerLayout
-            val navigationView = binding.navigationView
-
-            navigationView.setNavigationItemSelectedListener { menuItem ->
-                when (menuItem.itemId) {
-                    R.id.nav_home -> {
-                        drawerLayout.closeDrawers()
-                        true
-                    }
-
-                    R.id.nav_logout -> {
-                        handleLogout()
-                        true
-                    }
-
-                    else -> false
-                }
-            }
-        } catch (e: Exception) {
-            logError("Error setting up navigation drawer", e)
-        }
-    }
 
     private fun setupViewAllRequirementsButton() {
         try {
@@ -353,8 +332,8 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            android.R.id.home -> {
-                drawerLayout.openDrawer(GravityCompat.START)
+            R.id.action_profile -> {
+                showProfileMenu()
                 true
             }
             R.id.action_notifications -> {
@@ -369,17 +348,101 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
+    private fun showProfileMenu() {
+        val view = findViewById<View>(R.id.action_profile) ?: return
 
+        PopupMenu(this, view).apply {
+            menuInflater.inflate(R.menu.profile_menu, menu)
+
+            setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.action_view_profile -> {
+                        navigateToProfile()
+                        true
+                    }
+                    R.id.action_logout -> {
+                        handleLogout()
+                        true
+                    }
+                    else -> false
+                }
+            }
+            show()
+        }
+    }
+
+    private fun navigateToProfile() {
+        try {
+            Intent(this, ProfileActivity::class.java).also { intent ->
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            logError("Error navigating to Profile", e)
+            showToast("Unable to view profile")
+        }
+    }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.toolbar_menu, menu)
+
+        // Get the profile menu item and its action view
+        val profileMenuItem = menu.findItem(R.id.action_profile)
+        val profileActionView = profileMenuItem.actionView
+
+        // Set click listener for the action view
+        profileActionView?.setOnClickListener {
+            onOptionsItemSelected(profileMenuItem)
+        }
+
+        // Load profile picture
+        loadProfilePicture(profileActionView)
+
         return true
+    }
+
+    private fun loadProfilePicture(actionView: View?) {
+        val profileImageView = actionView?.findViewById<ShapeableImageView>(R.id.menuProfileImage)
+        val token = TokenManager.getToken(this)
+
+        if (profileImageView != null && token != null) {
+            lifecycleScope.launch {
+                try {
+                    val response = RetrofitInstance.createApiService().getProfile("Bearer $token")
+                    if (response.isSuccessful && response.body() != null) {
+                        val profile = response.body()!!
+                        profile.profilePictureUrl?.let { fileName ->
+                            val imageUrl = RetrofitInstance.getProfilePictureUrl(fileName)
+                            Glide.with(this@HomeActivity)
+                                .load(imageUrl)
+                                .placeholder(R.drawable.ic_profile)
+                                .error(R.drawable.ic_profile)
+                                .circleCrop()
+                                .into(profileImageView)
+                        } ?: run {
+                            // Load default profile icon if no profile picture
+                            Glide.with(this@HomeActivity)
+                                .load(R.drawable.ic_profile)
+                                .circleCrop()
+                                .into(profileImageView)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error loading profile picture", e)
+                }
+            }
+        }
+    }
+
+    // Add this function to refresh the profile picture when needed
+    fun refreshProfilePicture() {
+        invalidateOptionsMenu() // This will trigger onCreateOptionsMenu again
     }
 
     override fun onResume() {
         super.onResume()
         fetchEvents()
         setupUnreadNotificationCount()
+        refreshProfilePicture()
     }
 }
 
