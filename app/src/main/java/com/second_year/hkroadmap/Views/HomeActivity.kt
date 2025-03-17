@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.ImageView
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
@@ -25,7 +26,11 @@ import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.databinding.ActivityHomeBinding
+import com.second_year.hkroadmap.databinding.AnnouncementBadgeBinding
 import com.second_year.hkroadmap.databinding.NotificationBadgeBinding
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
@@ -33,6 +38,13 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var eventsAdapter: EventsAdapter
     private val TAG = "HomeActivity"
+    private var refreshJob: Job? = null
+
+    companion object {
+        private const val NOTIFICATION_REQUEST_CODE = 100
+        private const val ANNOUNCEMENT_REQUEST_CODE = 101
+        private const val REFRESH_INTERVAL = 30000L // 30 seconds
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,9 +61,26 @@ class HomeActivity : AppCompatActivity() {
             setupRecyclerView()
             setupViewAllRequirementsButton()
             setupUnreadNotificationCount()
+            setupUnreadAnnouncementCount()  // Add this
             fetchEvents()
         } catch (e: Exception) {
             logError("Error in onCreate", e)
+        }
+        startPeriodicRefresh()
+    }
+
+    private fun startPeriodicRefresh() {
+        refreshJob?.cancel() // Cancel any existing job
+        refreshJob = lifecycleScope.launch {
+            while (isActive) {
+                try {
+                    setupUnreadNotificationCount()
+                    setupUnreadAnnouncementCount()
+                    delay(REFRESH_INTERVAL)
+                } catch (e: Exception) {
+                    logError("Error in periodic refresh", e)
+                }
+            }
         }
     }
 
@@ -65,6 +94,44 @@ class HomeActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             logError("Error setting up toolbar", e)
+        }
+    }
+    // Add this function
+    private fun setupUnreadAnnouncementCount() {
+        val token = TokenManager.getToken(this) ?: return
+
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitInstance.createApiService()
+                    .getAnnouncementUnreadCount("Bearer $token")
+
+                if (response.isSuccessful && response.body() != null) {
+                    val unreadCount = response.body()!!.unread_count  // Changed from unreadCount to unread_count
+                    updateAnnouncementBadge(unreadCount)
+                }
+            } catch (e: Exception) {
+                logError("Failed to fetch unread announcements count", e)
+            }
+        }
+    }
+
+    // Add this function
+    private fun updateAnnouncementBadge(count: Int) {
+        try {
+            val announcementMenuItem = binding.toolbar.menu.findItem(R.id.action_announcements)
+            if (count > 0) {
+                val actionView = AnnouncementBadgeBinding.inflate(layoutInflater)
+                actionView.announcementBadgeCount.text = if (count > 99) "99+" else count.toString()
+
+                announcementMenuItem.actionView = actionView.root
+                actionView.root.setOnClickListener {
+                    navigateToAnnouncements()
+                }
+            } else {
+                announcementMenuItem.actionView = null
+            }
+        } catch (e: Exception) {
+            logError("Error updating announcement badge", e)
         }
     }
 
@@ -116,24 +183,30 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == NOTIFICATION_REQUEST_CODE && resultCode == RESULT_OK) {
-            setupUnreadNotificationCount()
+        when (requestCode) {
+            NOTIFICATION_REQUEST_CODE -> {
+                if (resultCode == RESULT_OK) {
+                    setupUnreadNotificationCount()
+                }
+            }
+            ANNOUNCEMENT_REQUEST_CODE -> {
+                if (resultCode == RESULT_OK) {
+                    setupUnreadAnnouncementCount()
+                }
+            }
         }
     }
 
+    // Update this function
     private fun navigateToAnnouncements() {
         try {
             Intent(this, AnnouncementActivity::class.java).also { intent ->
-                startActivity(intent)
+                startActivityForResult(intent, ANNOUNCEMENT_REQUEST_CODE)
             }
         } catch (e: Exception) {
             logError("Error navigating to Announcements", e)
             showToast("Unable to view announcements")
         }
-    }
-
-    companion object {
-        private const val NOTIFICATION_REQUEST_CODE = 100
     }
 
 
@@ -442,7 +515,18 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
         fetchEvents()
         setupUnreadNotificationCount()
+        setupUnreadAnnouncementCount()
         refreshProfilePicture()
+        startPeriodicRefresh() // Restart periodic updates
+    }
+
+    override fun onPause() {
+        super.onPause()
+        refreshJob?.cancel() // Stop updates when activity is not visible
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        refreshJob?.cancel()
     }
 }
-

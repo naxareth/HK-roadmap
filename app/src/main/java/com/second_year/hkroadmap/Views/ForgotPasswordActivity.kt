@@ -2,6 +2,8 @@ package com.second_year.hkroadmap.Views
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -18,19 +20,24 @@ class ForgotPasswordActivity : AppCompatActivity() {
     private var currentEmail: String = ""
     private val TAG = "ForgotPassword"
 
+    companion object {
+        private const val MIN_PASSWORD_LENGTH = 8
+        private const val MAX_PASSWORD_LENGTH = 20
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityForgotPasswordBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Get email from intent if it exists
         currentEmail = intent.getStringExtra("email") ?: ""
+        setupUI()
+    }
 
+    private fun setupUI() {
         if (currentEmail.isEmpty()) {
-            // Show email input UI if no email provided (coming from login page)
             setupEmailInputUI()
         } else {
-            // Show password change UI if email exists (coming from OTP verification)
             setupPasswordChangeUI()
         }
     }
@@ -44,8 +51,15 @@ class ForgotPasswordActivity : AppCompatActivity() {
 
             buttonSendResetLink.text = "Send OTP"
             buttonSendResetLink.setOnClickListener { handleEmailSubmission() }
-
             textViewBackToLogin.setOnClickListener { navigateToLogin() }
+
+            etEmail.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    tilEmail.error = null
+                }
+            })
         }
     }
 
@@ -58,18 +72,37 @@ class ForgotPasswordActivity : AppCompatActivity() {
 
             buttonSendResetLink.text = "Reset Password"
             buttonSendResetLink.setOnClickListener { handlePasswordChange() }
-
             textViewBackToLogin.setOnClickListener { navigateToLogin() }
+
+            setupPasswordTextWatchers()
+        }
+    }
+
+    private fun setupPasswordTextWatchers() {
+        binding.apply {
+            etNewPassword.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    tilNewPassword.error = null
+                }
+            })
+
+            etConfirmPassword.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    tilConfirmPassword.error = null
+                }
+            })
         }
     }
 
     private fun handleEmailSubmission() {
         val email = binding.etEmail.text.toString().trim()
-
         if (!validateEmail(email)) return
 
         showProgress()
-
         lifecycleScope.launch {
             try {
                 val response = RetrofitInstance.createApiService()
@@ -81,12 +114,12 @@ class ForgotPasswordActivity : AppCompatActivity() {
                     showToast("OTP sent successfully")
                     navigateToOtpVerification(email)
                 } else {
-                    showToast(response.message)
+                    binding.tilEmail.error = response.message
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send OTP", e)
                 hideProgress()
-                showToast("Failed to send OTP: ${e.message}")
+                handleError(e)
             }
         }
     }
@@ -98,7 +131,6 @@ class ForgotPasswordActivity : AppCompatActivity() {
         if (!validatePasswords(newPassword, confirmPassword)) return
 
         showProgress()
-
         lifecycleScope.launch {
             try {
                 val request = PasswordChangeRequest(currentEmail, newPassword)
@@ -111,45 +143,76 @@ class ForgotPasswordActivity : AppCompatActivity() {
                     showToast("Password changed successfully")
                     navigateToLogin()
                 } else {
-                    showToast(response.message)
+                    binding.tilNewPassword.error = response.message
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Password change failed", e)
                 hideProgress()
-                showToast("Failed to change password: ${e.message}")
+                handleError(e)
             }
         }
     }
 
     private fun validateEmail(email: String): Boolean {
-        if (email.isEmpty()) {
-            showToast("Please enter your email")
-            return false
-        }
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            showToast("Please enter a valid email")
-            return false
+        when {
+            email.isEmpty() -> {
+                binding.tilEmail.error = "Email is required"
+                return false
+            }
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                binding.tilEmail.error = "Invalid email format"
+                return false
+            }
+            !email.contains("@") -> {
+                binding.tilEmail.error = "Email must contain @"
+                return false
+            }
         }
         return true
     }
 
     private fun validatePasswords(password: String, confirmPassword: String): Boolean {
-        if (password.isEmpty() || confirmPassword.isEmpty()) {
-            showToast("Please fill in all fields")
-            return false
+        when {
+            password.isEmpty() -> {
+                binding.tilNewPassword.error = "Password is required"
+                return false
+            }
+            password.length < MIN_PASSWORD_LENGTH -> {
+                binding.tilNewPassword.error = "Password must be at least $MIN_PASSWORD_LENGTH characters"
+                return false
+            }
+            password.length > MAX_PASSWORD_LENGTH -> {
+                binding.tilNewPassword.error = "Password must be less than $MAX_PASSWORD_LENGTH characters"
+                return false
+            }
+            !isValidPassword(password) -> {
+                binding.tilNewPassword.error = "Password must contain uppercase, lowercase, number, and special character"
+                return false
+            }
+            confirmPassword.isEmpty() -> {
+                binding.tilConfirmPassword.error = "Please confirm your password"
+                return false
+            }
+            password != confirmPassword -> {
+                binding.tilConfirmPassword.error = "Passwords do not match"
+                return false
+            }
         }
-
-        if (password.length < 6) {
-            showToast("Password must be at least 6 characters")
-            return false
-        }
-
-        if (password != confirmPassword) {
-            showToast("Passwords do not match")
-            return false
-        }
-
         return true
+    }
+
+    private fun isValidPassword(password: String): Boolean {
+        val pattern = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{$MIN_PASSWORD_LENGTH,$MAX_PASSWORD_LENGTH}$".toRegex()
+        return pattern.matches(password)
+    }
+
+    private fun handleError(error: Exception) {
+        val errorMessage = when (error) {
+            is java.net.UnknownHostException -> "No internet connection"
+            is java.net.SocketTimeoutException -> "Connection timed out"
+            else -> "Error: ${error.message}"
+        }
+        showToast(errorMessage)
     }
 
     private fun navigateToOtpVerification(email: String) {

@@ -157,6 +157,23 @@ interface ApiService {
         @Header("Authorization") token: String
     ): Response<AnnouncementResponse>
 
+    @POST("announcements/mark-read")
+    suspend fun markAnnouncementAsRead(
+        @Header("Authorization") token: String,
+        @Body body: Map<String, Int>  // {"announcement_id": id}
+    ): Response<Unit>
+
+    @POST("announcements/mark-all-read")
+    suspend fun markAllAnnouncementsAsRead(
+        @Header("Authorization") token: String
+    ): Response<Unit>
+
+    @GET("announcements/unread-count")
+    suspend fun getAnnouncementUnreadCount(
+        @Header("Authorization") token: String
+    ): Response<UnreadCountResponse>
+
+
     // Event Management
     @GET("event/get")
     suspend fun getEvents(

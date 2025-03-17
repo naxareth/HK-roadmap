@@ -25,6 +25,7 @@ class AnnouncementActivity : AppCompatActivity() {
 
         setupToolbar()
         setupRecyclerView()
+        markAllAsRead() // Automatically mark all as read when activity opens
         fetchAnnouncements()
     }
 
@@ -35,6 +36,7 @@ class AnnouncementActivity : AppCompatActivity() {
             setDisplayShowHomeEnabled(true)
             title = "Announcements"
         }
+        // Remove the mark all as read menu since it's automatic now
     }
 
     private fun setupRecyclerView() {
@@ -61,8 +63,7 @@ class AnnouncementActivity : AppCompatActivity() {
                     .getStudentAnnouncements("Bearer $token")
 
                 if (response.isSuccessful && response.body() != null) {
-                    val announcements = response.body()!!.announcements
-                    announcementAdapter.submitList(announcements)
+                    announcementAdapter.submitList(response.body()!!)
                     binding.recyclerView.visibility = View.VISIBLE
                 } else {
                     showToast("Failed to fetch announcements")
@@ -76,16 +77,37 @@ class AnnouncementActivity : AppCompatActivity() {
         }
     }
 
+    private fun markAllAsRead() {
+        val token = TokenManager.getToken(this) ?: return
+
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitInstance.createApiService()
+                    .markAllAnnouncementsAsRead("Bearer $token")
+
+                if (response.isSuccessful) {
+                    setResult(RESULT_OK) // Important: This tells HomeActivity to refresh its badge
+                } else {
+                    Log.e(TAG, "Failed to mark all as read")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error marking all as read", e)
+            }
+        }
+    }
+
     private fun showToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        onBackPressed()
+        setResult(RESULT_OK) // Ensure result is set when pressing back button
+        finish()
         return true
     }
-    override fun onResume() {
-        super.onResume()
-        fetchAnnouncements()
+
+    override fun onBackPressed() {
+        setResult(RESULT_OK) // Ensure result is set when pressing back button
+        super.onBackPressed()
     }
 }

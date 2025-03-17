@@ -1,8 +1,6 @@
 package com.second_year.hkroadmap.Api.Models
 
 import com.google.gson.annotations.SerializedName
-import java.util.*
-
 
 data class AnnouncementItem(
     @SerializedName("announcement_id")
@@ -14,10 +12,16 @@ data class AnnouncementItem(
     @SerializedName("created_at")
     val createdAt: String,
     @SerializedName("author_name")
-    val authorName: String
+    val authorName: String,
+    @SerializedName("is_read")
+    val isRead: Int = 0,
+    @SerializedName("read_at")
+    val readAt: String? = null
 )
 
 data class AnnouncementResponse(
-    @SerializedName("notifications")  // Changed from "announcements" to "notifications"
-    val announcements: List<AnnouncementItem>
+    @SerializedName("announcements")
+    val announcements: List<AnnouncementItem>,
+    @SerializedName("unread_count")
+    val unread_count: Int  // Changed to match the API response
 )
