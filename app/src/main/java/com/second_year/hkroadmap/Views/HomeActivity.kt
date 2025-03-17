@@ -118,6 +118,17 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
+    private fun navigateToAnnouncements() {
+        try {
+            Intent(this, AnnouncementActivity::class.java).also { intent ->
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            logError("Error navigating to Announcements", e)
+            showToast("Unable to view announcements")
+        }
+    }
+
     companion object {
         private const val NOTIFICATION_REQUEST_CODE = 100
     }
@@ -346,15 +357,19 @@ class HomeActivity : AppCompatActivity() {
                 drawerLayout.openDrawer(GravityCompat.START)
                 true
             }
-
             R.id.action_notifications -> {
                 navigateToNotifications()
                 true
             }
-
+            R.id.action_announcements -> {
+                navigateToAnnouncements()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
+
+
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.toolbar_menu, menu)

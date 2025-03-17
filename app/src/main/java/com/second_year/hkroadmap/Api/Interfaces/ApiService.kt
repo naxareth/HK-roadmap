@@ -150,6 +150,13 @@ interface ApiService {
         @Header("Authorization") token: String
     ): Response<MarkReadResponse>
 
+
+    // Announcement Management
+    @GET("announcements/student")
+    suspend fun getStudentAnnouncements(
+        @Header("Authorization") token: String
+    ): Response<AnnouncementResponse>
+
     // Event Management
     @GET("event/get")
     suspend fun getEvents(
