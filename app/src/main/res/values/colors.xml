@@ -58,4 +58,5 @@
     <color name="warning_yellow">#FFC107</color>
     <color name="info_blue">#2196F3</color>
     <color name="success_color">#4CAF50</color>
+    <color name="notification_unread">#2196F3</color>
 </resources>

@@ -78,6 +78,10 @@
     <string name="error_empty_comment">Comment cannot be empty</string>
     <string name="error_invalid_requirement">Invalid requirement or student ID</string>
 
+    <!-- Notifications -->
+    <string name="notifications">Notifications</string>
+
+
     <!-- Requirements -->
     <string name="no_requirements">No requirements found</string>
     <string name="due_date_format">Due: %s</string>
@@ -111,6 +115,7 @@
     <string name="unsubmit_success">Document unsubmitted successfully</string>
 
     <!-- Error Messages -->
+    <string name="auth_error">Authentication error</string>
     <string name="error_invalid_ids">Invalid event or requirement ID</string>
     <string name="error_processing_file">Error processing file</string>
     <string name="error_unknown">An unknown error occurred</string>

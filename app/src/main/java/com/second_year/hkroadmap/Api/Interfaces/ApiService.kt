@@ -128,6 +128,28 @@ interface ApiService {
         @Body body: Map<String, Int>  // {"comment_id": id}
     ): Response<Unit>
 
+    // Student Notifications
+    @GET("notification/student")
+    suspend fun getStudentNotifications(
+        @Header("Authorization") token: String
+    ): Response<List<NotificationResponse>>
+
+    @GET("notification/count-student")
+    suspend fun getStudentUnreadCount(
+        @Header("Authorization") token: String
+    ): Response<UnreadCountResponse>
+
+    @PUT("notification/edit-student")
+    suspend fun toggleStudentNotification(
+        @Header("Authorization") token: String,
+        @Body request: NotificationToggleRequest
+    ): Response<NotificationResponse>
+
+    @PUT("notification/mark-student")
+    suspend fun markAllStudentRead(
+        @Header("Authorization") token: String
+    ): Response<MarkReadResponse>
+
     // Event Management
     @GET("event/get")
     suspend fun getEvents(

@@ -4,8 +4,10 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
@@ -19,6 +21,7 @@ import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.databinding.ActivityHomeBinding
+import com.second_year.hkroadmap.databinding.NotificationBadgeBinding
 import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
@@ -42,6 +45,7 @@ class HomeActivity : AppCompatActivity() {
             setupNavigationDrawer()
             setupRecyclerView()
             setupViewAllRequirementsButton()
+            setupUnreadNotificationCount()
             fetchEvents()
         } catch (e: Exception) {
             logError("Error in onCreate", e)
@@ -61,6 +65,63 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupUnreadNotificationCount() {
+        val token = TokenManager.getToken(this) ?: return
+
+        lifecycleScope.launch {
+            try {
+                val authToken = "Bearer $token"
+                val response = RetrofitInstance.createApiService().getStudentUnreadCount(authToken)
+                if (response.isSuccessful && response.body() != null) {
+                    updateNotificationBadge(response.body()!!.unread_count)
+                }
+            } catch (e: Exception) {
+                logError("Failed to fetch unread notifications count", e)
+            }
+        }
+    }
+
+    private fun updateNotificationBadge(count: Int) {
+        try {
+            val notificationMenuItem = binding.toolbar.menu.findItem(R.id.action_notifications)
+            if (count > 0) {
+                // Try using View Binding instead of findViewById
+                val actionView = NotificationBadgeBinding.inflate(layoutInflater)
+                actionView.badgeCount.text = if (count > 99) "99+" else count.toString()
+                notificationMenuItem.actionView = actionView.root
+                actionView.root.setOnClickListener {
+                    navigateToNotifications()
+                }
+            } else {
+                notificationMenuItem.actionView = null
+            }
+        } catch (e: Exception) {
+            logError("Error updating notification badge", e)
+        }
+    }
+
+    private fun navigateToNotifications() {
+        try {
+            Intent(this, NotificationActivity::class.java).also { intent ->
+                startActivityForResult(intent, NOTIFICATION_REQUEST_CODE)
+            }
+        } catch (e: Exception) {
+            logError("Error navigating to Notifications", e)
+            showToast("Unable to view notifications")
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == NOTIFICATION_REQUEST_CODE && resultCode == RESULT_OK) {
+            setupUnreadNotificationCount()
+        }
+    }
+
+    companion object {
+        private const val NOTIFICATION_REQUEST_CODE = 100
+    }
+
     private fun setupNavigationDrawer() {
         try {
             drawerLayout = binding.drawerLayout
@@ -72,10 +133,12 @@ class HomeActivity : AppCompatActivity() {
                         drawerLayout.closeDrawers()
                         true
                     }
+
                     R.id.nav_logout -> {
                         handleLogout()
                         true
                     }
+
                     else -> false
                 }
             }
@@ -144,7 +207,10 @@ class HomeActivity : AppCompatActivity() {
                     Log.d(TAG, "No valid requirements found for event: ${event.id}")
                     showToast("No requirements found for this event")
                 } else {
-                    Log.d(TAG, "Found ${validRequirements.size} valid requirements for event: ${event.id}")
+                    Log.d(
+                        TAG,
+                        "Found ${validRequirements.size} valid requirements for event: ${event.id}"
+                    )
                     navigateToRequirements(event)
                 }
             } catch (e: Exception) {
@@ -241,25 +307,18 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                drawerLayout.openDrawer(GravityCompat.START)
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
 
     private fun logError(message: String, throwable: Throwable?) {
-        Log.e(TAG, """
+        Log.e(
+            TAG, """
             Error: $message
             Stack trace: ${throwable?.stackTraceToString() ?: "No stack trace"}
             Device: ${Build.MANUFACTURER} ${Build.MODEL}
             Android version: ${Build.VERSION.RELEASE}
             Package: ${packageName}
             Version: ${packageManager.getPackageInfo(packageName, 0).versionName}
-        """.trimIndent())
+        """.trimIndent()
+        )
     }
 
     private fun performLocalLogout() {
@@ -281,14 +340,31 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        fetchEvents()
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> {
+                drawerLayout.openDrawer(GravityCompat.START)
+                true
+            }
+
+            R.id.action_notifications -> {
+                navigateToNotifications()
+                true
+            }
+
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
-    //Temporary, remove this if we want to add functionality to the notification icon
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.toolbar_menu, menu)
         return true
     }
+
+    override fun onResume() {
+        super.onResume()
+        fetchEvents()
+        setupUnreadNotificationCount()
+    }
 }
+

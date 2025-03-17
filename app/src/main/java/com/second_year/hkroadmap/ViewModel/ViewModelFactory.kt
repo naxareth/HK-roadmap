@@ -5,11 +5,14 @@ import androidx.lifecycle.ViewModelProvider
 import com.second_year.hkroadmap.Api.Interfaces.ApiService
 import com.second_year.hkroadmap.Api.Repository.RequirementRepository
 import com.second_year.hkroadmap.Repository.DocumentRepository
+import com.second_year.hkroadmap.Repository.NotificationRepository
 
 class ViewModelFactory(
     private val documentRepository: DocumentRepository? = null,
     private val requirementRepository: RequirementRepository? = null,
-    private val apiService: ApiService? = null
+    private val apiService: ApiService? = null,
+    private val notificationRepository: NotificationRepository? = null,
+    private val token: String? = null
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -28,6 +31,13 @@ class ViewModelFactory(
                 apiService?.let {
                     ProfileViewModel(it) as T
                 } ?: throw IllegalArgumentException("ApiService required for ProfileViewModel")
+            }
+            modelClass.isAssignableFrom(NotificationViewModel::class.java) -> {
+                if (notificationRepository != null && token != null) {
+                    NotificationViewModel(notificationRepository, token) as T
+                } else {
+                    throw IllegalArgumentException("NotificationRepository and token required for NotificationViewModel")
+                }
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class")
         }
