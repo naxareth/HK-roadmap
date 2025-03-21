@@ -31,8 +31,8 @@ class DocumentAdapter(
 
     companion object {
         private const val BASE_URL = "http://192.168.0.12:8000/uploads/"
-        private const val THUMBNAIL_SIZE = 120
-        private const val ICON_SIZE = 40
+        private const val THUMBNAIL_SIZE = 40
+        private const val ICON_SIZE = 24
     }
 
     fun setOnDocumentStatusChangedListener(listener: () -> Unit) {
@@ -96,8 +96,10 @@ class DocumentAdapter(
             binding.ivFileIcon.apply {
                 if (document.file_path.isNotEmpty() && isImageFile(document.file_path)) {
                     // Configure image view for thumbnails
-                    layoutParams.width = THUMBNAIL_SIZE.dp
-                    layoutParams.height = THUMBNAIL_SIZE.dp
+                    val params = layoutParams
+                    params.width = THUMBNAIL_SIZE.dp
+                    params.height = THUMBNAIL_SIZE.dp
+                    layoutParams = params
                     scaleType = ImageView.ScaleType.CENTER_CROP
 
                     // Load image using Coil
@@ -119,8 +121,10 @@ class DocumentAdapter(
                     }
                 } else {
                     // Reset image view for icons
-                    layoutParams.width = ICON_SIZE.dp
-                    layoutParams.height = ICON_SIZE.dp
+                    val params = layoutParams
+                    params.width = ICON_SIZE.dp
+                    params.height = ICON_SIZE.dp
+                    layoutParams = params
                     scaleType = ImageView.ScaleType.CENTER_INSIDE
 
                     // Set appropriate icon
@@ -168,9 +172,9 @@ class DocumentAdapter(
 
         private fun setupMenu(document: DocumentResponse) {
             binding.btnMenu.apply {
-                visibility = when {
-                    document.status.lowercase() !in listOf("draft", "pending") -> View.GONE
-                    document.file_path.isEmpty() && document.document_type != "link" -> View.GONE
+                // Show menu button for all states except "missing"
+                visibility = when (document.status.lowercase()) {
+                    "missing" -> View.GONE
                     else -> View.VISIBLE
                 }
 
@@ -182,13 +186,18 @@ class DocumentAdapter(
 
         private fun showDocumentMenu(anchor: View, document: DocumentResponse) {
             PopupMenu(anchor.context, anchor).apply {
-                // Only show delete option for draft documents
-                if (document.status.lowercase() == "draft") {
-                    menu.add(0, R.id.action_delete, 0, R.string.delete)
+                when (document.status.lowercase()) {
+                    "draft" -> {
+                        // For draft documents, show both delete and view options
+                        menu.add(0, R.id.action_delete, 0, R.string.delete)
+                        menu.add(0, R.id.action_view, 1, R.string.view_document)
+                    }
+                    "pending", "approved", "rejected" -> {
+                        // For these states, only show view option
+                        menu.add(0, R.id.action_view, 0, R.string.view_document)
+                    }
+                    // For "missing" status, don't show any options
                 }
-
-                // Always show view option
-                menu.add(0, R.id.action_view, 1, R.string.view_document)
 
                 setOnMenuItemClickListener { item ->
                     when (item.itemId) {
@@ -197,13 +206,17 @@ class DocumentAdapter(
                             true
                         }
                         R.id.action_view -> {
-                            handleDocumentView(anchor, document)
+                            onViewClick(document)
                             true
                         }
                         else -> false
                     }
                 }
-                show()
+
+                // Only show the menu if there are items
+                if (menu.size() > 0) {
+                    show()
+                }
             }
         }
 
@@ -298,7 +311,8 @@ class DocumentAdapter(
             "DocumentAdapter",
             "After update - Draft IDs: $draftDocumentIds, Pending IDs: $pendingDocumentIds"
         )
-        onDocumentStatusChanged()
+        notifyDataSetChanged() // Force refresh
+        onDocumentStatusChanged() // Notify status change
     }
 
     private class DocumentDiffCallback : DiffUtil.ItemCallback<DocumentResponse>() {

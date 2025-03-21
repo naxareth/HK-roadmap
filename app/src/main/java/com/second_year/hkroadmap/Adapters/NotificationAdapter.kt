@@ -45,6 +45,9 @@ class NotificationAdapter(
             // Update read indicator visibility using isRead property
             readIndicator.visibility = if (!notification.isRead) View.VISIBLE else View.GONE
 
+            // Set opacity for the entire item view
+            itemView.alpha = if (notification.isRead) 0.7f else 1.0f
+
             // Set click listener
             itemView.setOnClickListener {
                 onNotificationClick(notification)

@@ -32,13 +32,22 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class HomeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHomeBinding
-    private lateinit var drawerLayout: DrawerLayout
     private lateinit var eventsAdapter: EventsAdapter
     private val TAG = "HomeActivity"
     private var refreshJob: Job? = null
+
+    private var currentEvents = mutableListOf<EventResponse>()
+    private var currentSortOrder = SortOrder.DATE_DESC
+
+    private enum class SortOrder {
+        DATE_ASC, DATE_DESC
+    }
 
     companion object {
         private const val NOTIFICATION_REQUEST_CODE = 100
@@ -60,6 +69,7 @@ class HomeActivity : AppCompatActivity() {
             setupToolbar()
             setupRecyclerView()
             setupViewAllRequirementsButton()
+            setupSortButton()
             setupUnreadNotificationCount()
             setupUnreadAnnouncementCount()  // Add this
             fetchEvents()
@@ -90,8 +100,16 @@ class HomeActivity : AppCompatActivity() {
         try {
             setSupportActionBar(binding.toolbar)
             supportActionBar?.apply {
-                title = getString(R.string.app_name)
+                setDisplayShowTitleEnabled(false) // Hide the title
             }
+
+            // Setup profile container click
+            binding.profileContainer.setOnClickListener {
+                showProfileMenu(it)
+            }
+
+            // Load profile picture immediately
+            loadProfilePicture(binding.menuProfileImage)
         } catch (e: Exception) {
             logError("Error setting up toolbar", e)
         }
@@ -221,6 +239,57 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupSortButton() {
+        binding.sortButton.setOnClickListener {
+            showSortOptions(it)
+        }
+    }
+
+    private fun showSortOptions(view: View) {
+        PopupMenu(this, view).apply {
+            menuInflater.inflate(R.menu.sort_menu, menu)
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.sort_date_asc -> {
+                        currentSortOrder = SortOrder.DATE_ASC
+                        sortAndDisplayEvents()
+                        true
+                    }
+                    R.id.sort_date_desc -> {
+                        currentSortOrder = SortOrder.DATE_DESC
+                        sortAndDisplayEvents()
+                        true
+                    }
+                    else -> false
+                }
+            }
+            show()
+        }
+    }
+
+    private fun sortAndDisplayEvents() {
+        try {
+            val sortedEvents = when (currentSortOrder) {
+                SortOrder.DATE_ASC -> currentEvents.sortedBy { parseEventDate(it.date) }
+                SortOrder.DATE_DESC -> currentEvents.sortedByDescending { parseEventDate(it.date) }
+            }
+            eventsAdapter.submitList(sortedEvents)
+        } catch (e: Exception) {
+            logError("Error sorting events", e)
+            showToast("Error sorting events")
+        }
+    }
+
+    private fun parseEventDate(dateString: String): Date {
+        return try {
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                .parse(dateString) ?: Date(0)
+        } catch (e: Exception) {
+            logError("Error parsing date: $dateString", e)
+            Date(0)
+        }
+    }
+
     private fun navigateToViewRequirements() {
         try {
             Intent(this, ViewRequirementsActivity::class.java).also { intent ->
@@ -288,7 +357,6 @@ class HomeActivity : AppCompatActivity() {
             intent.putExtra("event_id", event.id)
             intent.putExtra("event_title", event.title)
             intent.putExtra("event_date", event.date)
-            intent.putExtra("event_location", event.location ?: "TBD")
             startActivity(intent)
         }
     }
@@ -309,31 +377,28 @@ class HomeActivity : AppCompatActivity() {
                 val events = RetrofitInstance.createApiService().getEvents(authToken)
                 Log.d(TAG, "Received events: ${events.size}")
 
-                val eventResponses = events.mapNotNull { eventItem ->
+                currentEvents = events.mapNotNull { eventItem ->
                     try {
                         EventResponse(
                             id = eventItem.event_id,
                             title = eventItem.event_name,
                             description = "No description available",
                             date = eventItem.date,
-                            location = "TBD",
                             created_at = eventItem.date,
                             updated_at = eventItem.date
-                        ).also {
-                            Log.d(TAG, "Converted event: $it")
-                        }
+                        )
                     } catch (e: Exception) {
                         logError("Error converting event: ${eventItem}", e)
                         null
                     }
-                }
+                }.toMutableList()
 
-                if (eventResponses.isEmpty()) {
+                if (currentEvents.isEmpty()) {
                     Log.w(TAG, "No events available after conversion")
                     showToast("No events available")
                 } else {
-                    Log.d(TAG, "Setting ${eventResponses.size} events to adapter")
-                    eventsAdapter.submitList(eventResponses)
+                    Log.d(TAG, "Setting ${currentEvents.size} events to adapter")
+                    sortAndDisplayEvents() // Use sorting function instead of direct submitList
                 }
             } catch (e: Exception) {
                 logError("Failed to fetch events", e)
@@ -405,10 +470,6 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_profile -> {
-                showProfileMenu()
-                true
-            }
             R.id.action_notifications -> {
                 navigateToNotifications()
                 true
@@ -421,12 +482,9 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    private fun showProfileMenu() {
-        val view = findViewById<View>(R.id.action_profile) ?: return
-
+    private fun showProfileMenu(view: View) {
         PopupMenu(this, view).apply {
             menuInflater.inflate(R.menu.profile_menu, menu)
-
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
                     R.id.action_view_profile -> {
@@ -457,58 +515,42 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.toolbar_menu, menu)
-
-        // Get the profile menu item and its action view
-        val profileMenuItem = menu.findItem(R.id.action_profile)
-        val profileActionView = profileMenuItem.actionView
-
-        // Set click listener for the action view
-        profileActionView?.setOnClickListener {
-            onOptionsItemSelected(profileMenuItem)
-        }
-
-        // Load profile picture
-        loadProfilePicture(profileActionView)
-
         return true
     }
 
-    private fun loadProfilePicture(actionView: View?) {
-        val profileImageView = actionView?.findViewById<ShapeableImageView>(R.id.menuProfileImage)
-        val token = TokenManager.getToken(this)
+    private fun loadProfilePicture(profileImageView: ShapeableImageView) {
+        val token = TokenManager.getToken(this) ?: return
 
-        if (profileImageView != null && token != null) {
-            lifecycleScope.launch {
-                try {
-                    val response = RetrofitInstance.createApiService().getProfile("Bearer $token")
-                    if (response.isSuccessful && response.body() != null) {
-                        val profile = response.body()!!
-                        profile.profilePictureUrl?.let { fileName ->
-                            val imageUrl = RetrofitInstance.getProfilePictureUrl(fileName)
-                            Glide.with(this@HomeActivity)
-                                .load(imageUrl)
-                                .placeholder(R.drawable.ic_profile)
-                                .error(R.drawable.ic_profile)
-                                .circleCrop()
-                                .into(profileImageView)
-                        } ?: run {
-                            // Load default profile icon if no profile picture
-                            Glide.with(this@HomeActivity)
-                                .load(R.drawable.ic_profile)
-                                .circleCrop()
-                                .into(profileImageView)
-                        }
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitInstance.createApiService().getProfile("Bearer $token")
+                if (response.isSuccessful && response.body() != null) {
+                    val profile = response.body()!!
+                    profile.profilePictureUrl?.let { fileName ->
+                        val imageUrl = RetrofitInstance.getProfilePictureUrl(fileName)
+                        Glide.with(this@HomeActivity)
+                            .load(imageUrl)
+                            .placeholder(R.drawable.ic_profile)
+                            .error(R.drawable.ic_profile)
+                            .circleCrop()
+                            .into(profileImageView)
+                    } ?: run {
+                        // Load default profile icon if no profile picture
+                        Glide.with(this@HomeActivity)
+                            .load(R.drawable.ic_profile)
+                            .circleCrop()
+                            .into(profileImageView)
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error loading profile picture", e)
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading profile picture", e)
             }
         }
     }
 
     // Add this function to refresh the profile picture when needed
     fun refreshProfilePicture() {
-        invalidateOptionsMenu() // This will trigger onCreateOptionsMenu again
+        loadProfilePicture(binding.menuProfileImage)
     }
 
     override fun onResume() {

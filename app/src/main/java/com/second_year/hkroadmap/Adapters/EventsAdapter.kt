@@ -44,7 +44,6 @@ class EventsAdapter : ListAdapter<EventResponse, EventsAdapter.EventViewHolder>(
         fun bind(event: EventResponse) {
             binding.apply {
                 tvEventTitle.text = event.title
-                tvEventLocation.text = event.location
                 tvEventDate.text = formatEventDate(event.date)
 
                 // Set click listener
@@ -57,7 +56,7 @@ class EventsAdapter : ListAdapter<EventResponse, EventsAdapter.EventViewHolder>(
         private fun formatEventDate(dateString: String): String {
             return try {
                 when {
-                    dateString.isBlank() || dateString == "0000-00-00 00:00:00" -> "Date TBD"
+                    dateString.isBlank() || dateString == "0000-00-00" -> "Date TBD"
                     else -> {
                         val date = inputFormat.parse(dateString)
                         if (date != null) {

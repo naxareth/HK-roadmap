@@ -30,14 +30,17 @@ class RequirementsAdapter(
     inner class RequirementViewHolder(
         private val binding: ItemRequirementBinding
     ) : RecyclerView.ViewHolder(binding.root) {
-        private val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
         fun bind(requirement: RequirementItem) {
             binding.apply {
                 tvRequirementName.text = requirement.requirement_name
 
+                // Format the date with full month name
                 try {
-                    val formattedDate = dateFormatter.format(requirement.due_date)
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val outputFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
+                    val date = inputFormat.parse(requirement.due_date)
+                    val formattedDate = date?.let { outputFormat.format(it) } ?: requirement.due_date
                     tvDueDate.text = "Due: $formattedDate"
                 } catch (e: Exception) {
                     tvDueDate.text = "Due: ${requirement.due_date}"

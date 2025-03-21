@@ -39,12 +39,14 @@
 
                     <com.google.android.material.chip.ChipGroup
                         android:id="@+id/statusFilterChipGroup"
+                        style="@style/Widget.App.ChipGroup"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp">
 
                         <com.google.android.material.chip.Chip
                             android:id="@+id/chipAll"
+                            style="@style/Widget.App.Chip"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/all"
@@ -53,6 +55,7 @@
 
                         <com.google.android.material.chip.Chip
                             android:id="@+id/chipPending"
+                            style="@style/Widget.App.Chip.Status.Pending"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/pending"
@@ -60,6 +63,7 @@
 
                         <com.google.android.material.chip.Chip
                             android:id="@+id/chipApproved"
+                            style="@style/Widget.App.Chip.Status.Approved"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/approved"
@@ -67,6 +71,7 @@
 
                         <com.google.android.material.chip.Chip
                             android:id="@+id/chipRejected"
+                            style="@style/Widget.App.Chip.Status.Rejected"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/rejected"
@@ -77,6 +82,7 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Rest of the layout remains the same -->
             <FrameLayout
                 android:id="@+id/emptyStateLayout"
                 android:layout_width="match_parent"

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Primary Theme Colors -->
-    <color name="primary_blue">#2196F3</color>
-    <color name="primary_blue_light">#64B5F6</color>
-    <color name="primary_blue_dark">#1976D2</color>
+    <color name="primary_green">#4CAF50</color>
+    <color name="primary_green_light">#81C784</color>
+    <color name="primary_green_dark">#388E3C</color>
 
     <!-- Neutral colors -->
     <color name="black">#000000</color>
@@ -28,35 +28,54 @@
     <color name="status_missing">#7B1FA2</color>
 
     <!-- Button colors -->
-    <color name="button_submit">#4CAF50</color>
-    <color name="button_submit_pressed">#388E3C</color>
+    <color name="button_submit">@color/primary_green</color>
+    <color name="button_submit_pressed">@color/primary_green_dark</color>
     <color name="button_unsubmit">#FF9800</color>
     <color name="button_unsubmit_pressed">#F57C00</color>
     <color name="button_delete">#F44336</color>
     <color name="button_delete_pressed">#D32F2F</color>
-    <color name="selection_color">#1A2196F3</color>
+    <color name="selection_color">#1A4CAF50</color>
 
     <!-- System colors -->
-    <color name="status_bar">@color/black</color>
-    <color name="navigation_bar">@color/black</color>
+    <color name="status_bar">@color/primary_green_dark</color>
+    <color name="navigation_bar">@color/primary_green_dark</color>
     <color name="background">@color/white</color>
     <color name="surface">@color/white</color>
     <color name="gray">#757575</color>
-    <color name="student_chip_background">#E3F2FD</color>
+
+    <!-- User type chip colors -->
+    <color name="student_chip_background">#E8F5E9</color>
     <color name="admin_chip_background">#FBE9E7</color>
+    <color name="staff_chip_background">#E8F5E9</color>
     <color name="default_chip_background">#F5F5F5</color>
 
     <!-- Legacy colors (for backward compatibility) -->
-    <color name="colorPrimary">@color/primary_blue</color>
+    <color name="colorPrimary">@color/primary_green</color>
     <color name="colorPrimaryDark">@color/status_bar</color>
-    <color name="colorAccent">@color/primary_blue</color>
+    <color name="colorAccent">@color/primary_green</color>
+    <color name="ripple_green">#1A4CAF50</color> <!-- 10% opacity primary green -->
+    <color name="ripple_green_dark">#334CAF50</color> <!-- 20% opacity primary green -->
 
     <!-- Utility colors -->
     <color name="dark_gray">#1E1E1E</color>
     <color name="error_red">#FF5252</color>
-    <color name="success_green">#4CAF50</color>
+    <color name="success_green">@color/primary_green</color>
     <color name="warning_yellow">#FFC107</color>
     <color name="info_blue">#2196F3</color>
-    <color name="success_color">#4CAF50</color>
-    <color name="notification_unread">#2196F3</color>
+    <color name="success_color">@color/primary_green</color>
+    <color name="notification_unread">@color/primary_green</color>
+
+    <!-- Material Design Green Theme Colors -->
+    <color name="primary_green_variant">#2E7D32</color>
+    <color name="secondary_green">#66BB6A</color>
+    <color name="secondary_green_light">#98EE99</color>
+    <color name="secondary_green_dark">#338A3E</color>
+    <color name="on_primary">@color/white</color>
+    <color name="on_secondary">@color/white</color>
+    <color name="on_background">@color/gray_900</color>
+    <color name="on_surface">@color/gray_900</color>
+    <color name="on_error">@color/white</color>
+    <color name="ripple_light">#1F000000</color>
+    <color name="ripple_dark">#33FFFFFF</color>
+    <color name="error_color">#B00020</color>
 </resources>

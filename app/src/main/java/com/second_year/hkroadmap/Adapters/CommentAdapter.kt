@@ -44,6 +44,7 @@ class CommentAdapter(
                 when (comment.userType) {
                     Comment.USER_TYPE_STUDENT -> R.color.student_chip_background
                     Comment.USER_TYPE_ADMIN -> R.color.admin_chip_background
+                    Comment.USER_TYPE_STAFF -> R.color.staff_chip_background
                     else -> R.color.default_chip_background
                 }
             )

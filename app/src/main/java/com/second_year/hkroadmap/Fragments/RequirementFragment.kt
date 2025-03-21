@@ -1,11 +1,13 @@
 package com.second_year.hkroadmap.Fragments
 
+import android.app.ProgressDialog.show
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.PopupMenu
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -39,8 +41,14 @@ class RequirementFragment : Fragment() {
     private var eventId: Int = -1
     private var eventTitle: String = ""
     private var eventDate: String = ""
-    private var eventLocation: String = ""
     private var studentId: Int = 0
+
+    private var currentRequirements = mutableListOf<RequirementItem>()
+    private enum class SortOrder {
+        NAME_ASC, NAME_DESC
+    }
+    private var currentSortOrder = SortOrder.NAME_ASC
+
 
     companion object {
         private const val TAG = "RequirementFragment"
@@ -49,14 +57,12 @@ class RequirementFragment : Fragment() {
             eventId: Int,
             eventTitle: String,
             eventDate: String,
-            eventLocation: String
         ): RequirementFragment {
             return RequirementFragment().apply {
                 arguments = Bundle().apply {
                     putInt("event_id", eventId)
                     putString("event_title", eventTitle)
                     putString("event_date", eventDate)
-                    putString("event_location", eventLocation)
                 }
             }
         }
@@ -68,7 +74,6 @@ class RequirementFragment : Fragment() {
             eventId = it.getInt("event_id", -1)
             eventTitle = it.getString("event_title", "")
             eventDate = it.getString("event_date", "")
-            eventLocation = it.getString("event_location", "TBD")
         }
     }
 
@@ -154,13 +159,13 @@ class RequirementFragment : Fragment() {
         Log.d(TAG, "Setting up views")
         setupEventDetails()
         setupRecyclerView()
+        setupSortButton()
     }
 
     private fun setupEventDetails() {
         binding.apply {
             tvEventTitle.text = eventTitle
             tvEventDate.text = eventDate
-            tvEventLocation.text = eventLocation
         }
         Log.d(TAG, "Event details displayed")
     }
@@ -177,6 +182,53 @@ class RequirementFragment : Fragment() {
         }
         Log.d(TAG, "RecyclerView setup completed")
     }
+
+    // Add these functions after setupRecyclerView()
+    private fun setupSortButton() {
+        binding.sortButton.setOnClickListener {
+            showSortOptions(it)
+        }
+    }
+
+    private fun showSortOptions(view: View) {
+        PopupMenu(requireContext(), view).apply {
+            menuInflater.inflate(R.menu.sort_requirements_menu, menu)
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.sort_requirement_name_asc -> {
+                        currentSortOrder = SortOrder.NAME_ASC
+                        sortAndDisplayRequirements()
+                        true
+                    }
+                    R.id.sort_requirement_name_desc -> {
+                        currentSortOrder = SortOrder.NAME_DESC
+                        sortAndDisplayRequirements()
+                        true
+                    }
+                    else -> false
+                }
+            }
+            show()
+        }
+    }
+
+    private fun sortAndDisplayRequirements() {
+        try {
+            val sortedRequirements = when (currentSortOrder) {
+                SortOrder.NAME_ASC -> currentRequirements.sortedBy {
+                    it.requirement_name
+                }
+                SortOrder.NAME_DESC -> currentRequirements.sortedByDescending {
+                    it.requirement_name
+                }
+            }
+            requirementsAdapter.submitList(sortedRequirements)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sorting requirements", e)
+            showError("Error sorting requirements")
+        }
+    }
+
 
     private fun navigateToDocumentSubmission(requirement: RequirementItem) {
         try {
@@ -234,7 +286,8 @@ class RequirementFragment : Fragment() {
         viewModel.requirements.observe(viewLifecycleOwner) { requirements ->
             val validRequirements = requirements.filter { it.event_id == eventId }
             Log.d(TAG, "Requirements received: ${requirements.size}, Valid: ${validRequirements.size}")
-            requirementsAdapter.submitList(validRequirements)
+            currentRequirements = validRequirements.toMutableList() // Add this line
+            sortAndDisplayRequirements() // Replace submitList with this
             updateEmptyState(validRequirements.isEmpty())
         }
 

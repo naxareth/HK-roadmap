@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -12,39 +13,55 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/tvEventTitle"
+        <!-- Title section with green background -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/black"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            tools:text="Event Title" />
+            android:background="@color/primary_green"
+            android:padding="16dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/tvEventDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:drawablePadding="4dp"
-            android:gravity="center_vertical"
-            android:textColor="@android:color/darker_gray"
-            app:drawableStartCompat="@drawable/ic_calendar"
-            tools:text="March 15, 2024" />
+            <TextView
+                android:id="@+id/tvEventTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:fontFamily="@font/signika_medium"
+                android:textStyle="bold"
+                tools:text="Event Title" />
 
-        <TextView
-            android:id="@+id/tvEventLocation"
-            android:layout_width="wrap_content"
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="8dp"
+                android:src="@drawable/ic_arrow_right"
+                app:tint="@color/white" />
+
+        </LinearLayout>
+
+        <!-- Date section with white background -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:drawablePadding="4dp"
-            android:gravity="center_vertical"
-            android:textColor="@android:color/darker_gray"
-            app:drawableStartCompat="@drawable/ic_location"
-            tools:text="Room 301" />
+            android:background="@color/white"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tvEventDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
+                android:textSize="16sp"
+                android:fontFamily="@font/signika_regular"
+                app:drawableStartCompat="@drawable/ic_calendar"
+                tools:text="March 15, 2024" />
+        </LinearLayout>
 
     </LinearLayout>
 

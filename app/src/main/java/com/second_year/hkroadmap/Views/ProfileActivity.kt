@@ -22,6 +22,8 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
+import com.second_year.hkroadmap.Api.Models.LoginRequest
+import com.second_year.hkroadmap.Api.Models.PasswordChangeRequest
 import com.second_year.hkroadmap.data.models.ProfileUpdateRequest
 import com.second_year.hkroadmap.R
 import com.second_year.hkroadmap.ViewModel.ProfileViewModel
@@ -188,6 +190,8 @@ class ProfileActivity : AppCompatActivity() {
         binding.btnEditProfilePicture.setOnClickListener {
             openImagePicker()
         }
+        setupPasswordChange()
+        setupLogout()
     }
 
 
@@ -326,6 +330,141 @@ class ProfileActivity : AppCompatActivity() {
             } ?: run {
                 Log.e(TAG, "Cannot update profile: Token is null")
                 showError("Not logged in")
+            }
+        }
+    }
+
+
+    private fun setupPasswordChange() {
+        binding.btnChangePassword.setOnClickListener {
+            val currentPassword = binding.etCurrentPassword.text.toString()
+            val newPassword = binding.etNewPassword.text.toString()
+            val confirmPassword = binding.etConfirmNewPassword.text.toString()
+
+            // Validate inputs
+            when {
+                currentPassword.isEmpty() -> {
+                    binding.tilCurrentPassword.error = "Please enter current password"
+                    return@setOnClickListener
+                }
+                newPassword.isEmpty() -> {
+                    binding.tilNewPassword.error = "Please enter new password"
+                    return@setOnClickListener
+                }
+                confirmPassword.isEmpty() -> {
+                    binding.tilConfirmNewPassword.error = "Please confirm new password"
+                    return@setOnClickListener
+                }
+                newPassword != confirmPassword -> {
+                    binding.tilConfirmNewPassword.error = "Passwords do not match"
+                    return@setOnClickListener
+                }
+                newPassword.length < 8 -> {
+                    binding.tilNewPassword.error = "Password must be at least 8 characters"
+                    return@setOnClickListener
+                }
+            }
+
+            // Show confirmation dialog
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Change Password")
+                .setMessage("Are you sure you want to change your password?")
+                .setPositiveButton("Yes") { _, _ ->
+                    verifyCurrentPasswordAndChange(currentPassword, newPassword)
+                }
+                .setNegativeButton("No", null)
+                .show()
+        }
+    }
+
+    private fun verifyCurrentPasswordAndChange(currentPassword: String, newPassword: String) {
+        lifecycleScope.launch {
+            try {
+                binding.progressBar.isVisible = true
+
+                // First verify current password by attempting to login
+                val loginRequest = LoginRequest(
+                    email = binding.tvEmail.text.toString(),
+                    password = currentPassword
+                )
+
+                val loginResponse = RetrofitInstance.createApiService().studentLogin(loginRequest)
+
+                if (loginResponse.token != null) {
+                    // Current password is correct, proceed with password change
+                    val passwordChangeRequest = PasswordChangeRequest(
+                        email = binding.tvEmail.text.toString(),
+                        new_password = newPassword
+                    )
+
+                    val response = RetrofitInstance.createApiService().changePassword(passwordChangeRequest)
+
+                    // Clear password fields
+                    binding.etCurrentPassword.text?.clear()
+                    binding.etNewPassword.text?.clear()
+                    binding.etConfirmNewPassword.text?.clear()
+
+                    showSuccess(response.message)
+
+                    // Important: After successful password change, log out the user
+                    MaterialAlertDialogBuilder(this@ProfileActivity)
+                        .setTitle("Password Changed")
+                        .setMessage("Your password has been changed successfully. Please log in again with your new password.")
+                        .setPositiveButton("OK") { _, _ ->
+                            // Clear token and redirect to login
+                            TokenManager.clearToken(this@ProfileActivity)
+                            val intent = Intent(this@ProfileActivity, LoginActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            startActivity(intent)
+                            finish()
+                        }
+                        .setCancelable(false)
+                        .show()
+                } else {
+                    showError("Current password is incorrect")
+                }
+            } catch (e: Exception) {
+                showError("Failed to change password: ${e.message}")
+            } finally {
+                binding.progressBar.isVisible = false
+            }
+        }
+    }
+
+    private fun setupLogout() {
+        binding.btnLogout.setOnClickListener {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Logout")
+                .setMessage("Are you sure you want to logout?")
+                .setPositiveButton("Yes") { _, _ ->
+                    logout()
+                }
+                .setNegativeButton("No", null)
+                .show()
+        }
+    }
+
+    private fun logout() {
+        lifecycleScope.launch {
+            try {
+                binding.progressBar.isVisible = true
+                token?.let { token ->
+                    val response = RetrofitInstance.createApiService().studentLogout("Bearer $token")
+                    if (response.message.isNotEmpty()) {
+                        // Clear token
+                        TokenManager.clearToken(this@ProfileActivity)
+
+                        // Navigate to login screen
+                        val intent = Intent(this@ProfileActivity, LoginActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        startActivity(intent)
+                        finish()
+                    }
+                }
+            } catch (e: Exception) {
+                showError("Failed to logout: ${e.message}")
+            } finally {
+                binding.progressBar.isVisible = false
             }
         }
     }

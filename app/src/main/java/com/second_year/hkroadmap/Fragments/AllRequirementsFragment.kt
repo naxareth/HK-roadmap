@@ -208,7 +208,6 @@ class AllRequirementsFragment : Fragment() {
                                 title = event.event_name,
                                 description = "",
                                 date = event.date,
-                                location = "",
                                 created_at = "",
                                 updated_at = ""
                             ),

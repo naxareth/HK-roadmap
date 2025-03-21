@@ -4,8 +4,7 @@ package com.second_year.hkroadmap.Api.Models
 data class EventRequest(
     val title: String,
     val description: String,
-    val date: String,
-    val location: String
+    val date: String
 )
 
 data class EventItem(
@@ -19,7 +18,6 @@ data class EventResponse(
     val title: String,
     val description: String,
     val date: String,
-    val location: String,
     val created_at: String,
     val updated_at: String
 )

@@ -64,7 +64,7 @@ class ViewRequirementsActivity : AppCompatActivity() {
 
         // Customize SwipeRefreshLayout (optional)
         binding.swipeRefreshLayout.apply {
-            setColorSchemeResources(R.color.primary_blue) // Use your app's color
+            setColorSchemeResources(R.color.primary_green) // Use your app's color
             setProgressBackgroundColorSchemeResource(android.R.color.white)
         }
     }

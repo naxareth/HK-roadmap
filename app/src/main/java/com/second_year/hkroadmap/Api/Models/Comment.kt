@@ -7,7 +7,7 @@ data class Comment(
     val documentId: Int? = null,
     val requirementId: Int,
     val studentId: Int,
-    val userType: String,      // enum('admin','student')
+    val userType: String,      // enum('admin','student','staff')
     val userName: String,      // Not null in DB
     val body: String,          // Not null in DB
     val createdAt: String,     // timestamp
@@ -17,13 +17,15 @@ data class Comment(
     companion object {
         const val USER_TYPE_STUDENT = "student"
         const val USER_TYPE_ADMIN = "admin"
+        const val USER_TYPE_STAFF = "staff"
     }
 
     // If you need userId, derive it from studentId for students
     val userId: String
         get() = when (userType) {
             USER_TYPE_STUDENT -> studentId.toString()
-            USER_TYPE_ADMIN -> "admin"  // or however you want to handle admin IDs
+            USER_TYPE_ADMIN -> "admin"
+            USER_TYPE_STAFF -> "staff"
             else -> studentId.toString()
         }
 }

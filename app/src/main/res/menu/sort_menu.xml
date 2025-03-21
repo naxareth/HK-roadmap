@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/sort_date_asc"
+        android:title="Date (Oldest First)"
+        android:orderInCategory="100"/>
+    <item
+        android:id="@+id/sort_date_desc"
+        android:title="Date (Newest First)"
+        android:orderInCategory="101"/>
+</menu>

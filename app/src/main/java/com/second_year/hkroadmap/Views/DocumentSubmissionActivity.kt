@@ -12,6 +12,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import androidx.core.widget.NestedScrollView
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
@@ -72,7 +75,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                 finish()
                 return
             }
-
+            setupScrollIndicator()
             setupDependencies()
             setupViews()
             observeViewModel()
@@ -135,6 +138,38 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         setupClickListeners()
     }
 
+
+    private fun setupScrollIndicator() {
+        binding.nestedScrollView.setOnScrollChangeListener(NestedScrollView.OnScrollChangeListener { v, _, scrollY, _, _ ->
+            val child = v.getChildAt(0)
+            if (child != null) {
+                val childHeight = child.height
+                val scrollViewHeight = v.height
+                val isScrollable = childHeight > scrollViewHeight
+                val hasReachedBottom = scrollY >= childHeight - scrollViewHeight
+
+                binding.scrollIndicator.apply {
+                    if (isScrollable && !hasReachedBottom) {
+                        if (visibility != View.VISIBLE) {
+                            show()
+                        }
+                    } else {
+                        if (visibility == View.VISIBLE) {
+                            hide()
+                        }
+                    }
+                }
+            }
+        })
+
+        // Scroll to bottom when indicator is clicked
+        binding.scrollIndicator.setOnClickListener {
+            binding.nestedScrollView.post {
+                binding.nestedScrollView.fullScroll(View.FOCUS_DOWN)
+            }
+        }
+    }
+
     private fun setupCommentsList() {
         commentAdapter = CommentAdapter(
             onEditClick = { comment -> showEditCommentDialog(comment) },
@@ -146,6 +181,12 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             adapter = commentAdapter
             addItemDecoration(DividerItemDecoration(context, DividerItemDecoration.VERTICAL))
         }
+    }
+
+    private fun refreshDocuments() {
+        loadDocuments()
+        documentAdapter.notifyDataSetChanged()
+        updateEmptyState(documentAdapter.itemCount == 0)
     }
 
     // New method for loading comments
@@ -319,6 +360,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         - Draft IDs available: ${documentAdapter.getDraftDocumentIds()}
     """.trimIndent())
         viewModel.submitMultipleDocuments(token, documentIds)
+        refreshDocuments()
     }
 
     private fun unsubmitMultipleDocuments(documentIds: List<Int>) {
@@ -333,6 +375,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         - Pending IDs available: ${documentAdapter.getPendingDocumentIds()}
     """.trimIndent())
         viewModel.unsubmitMultipleDocuments(token, documentIds)
+        refreshDocuments()
     }
 
     private fun showAddLinkDialog() {
@@ -376,6 +419,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             return
         }
         viewModel.uploadLinkDocument(token, link, eventId, requirementId)
+        refreshDocuments()
     }
 
     private fun handleSelectedFile(uri: Uri) {
@@ -403,6 +447,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             return
         }
         viewModel.uploadDocument(token, file, eventId, requirementId)
+        refreshDocuments()
     }
 
     private fun showDeleteConfirmation(document: DocumentResponse) {
@@ -424,14 +469,27 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         }
         documentAdapter.removeDocumentId(document.document_id)
         viewModel.deleteDocument(token, document.document_id)
+        refreshDocuments()
     }
 
     private fun viewDocument(document: DocumentResponse) {
-        // Remove these lines as they're no longer needed
-        // documentId = document.document_id
-        // viewModel.setCurrentDocument(document)
-        // loadComments()
+        // First check if document is viewable based on status
+        when (document.status.lowercase()) {
+            "missing" -> {
+                showError("Missing documents cannot be viewed")
+                return
+            }
+            // Allow viewing for draft, pending, approved, and rejected documents
+            "draft", "pending", "approved", "rejected" -> {
+                // Continue with viewing logic
+            }
+            else -> {
+                showError("Unknown document status")
+                return
+            }
+        }
 
+        // Handle link documents
         if (document.document_type == "link") {
             try {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(document.link_url))
@@ -443,10 +501,9 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             return
         }
 
-        // Show loading indicator
+        // Handle file documents
         binding.progressBar.isVisible = true
 
-        // Launch coroutine to handle file download and viewing
         lifecycleScope.launch {
             try {
                 DocumentViewerUtils.createViewIntent(this@DocumentSubmissionActivity, document).fold(
@@ -589,7 +646,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     }
 
     private fun observeViewModel() {
-        // Existing observers
+        // Document observers
         viewModel.studentDocuments.observe(this) { documents ->
             try {
                 Log.d(TAG, "Received ${documents?.size} documents")
@@ -600,43 +657,90 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                 Log.d(TAG, "Filtered to ${filteredDocs.size} documents for current requirement")
                 documentAdapter.submitList(filteredDocs)
                 updateEmptyState(filteredDocs.isEmpty())
+
+                // Force UI update after data change
+                binding.rvDocuments.post {
+                    documentAdapter.notifyDataSetChanged()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing documents", e)
                 showError(getString(R.string.error_processing_documents))
             }
         }
 
+        // Loading state observer
         viewModel.isLoading.observe(this) { isLoading ->
             binding.progressBar.isVisible = isLoading
         }
 
+        // Error message observer
         viewModel.errorMessage.observe(this) { error ->
             error?.let {
                 showError(it)
                 viewModel.clearMessages()
+                // Refresh documents to ensure UI is in sync
+                refreshDocuments()
             }
         }
 
+        // Success message observer
         viewModel.successMessage.observe(this) { message ->
             message?.let {
                 showSuccess(it)
                 viewModel.clearMessages()
+                // Refresh documents after successful operation
+                refreshDocuments()
+                // Also refresh comments if needed
+                loadComments()
             }
         }
 
-        // New comment observers
+        // Document upload observer
+        viewModel.uploadedDocumentIds.observe(this) { documentIds ->
+            if (documentIds.isNotEmpty()) {
+                Log.d(TAG, "New documents uploaded: $documentIds")
+                refreshDocuments()
+                viewModel.clearUploadedDocumentIds()
+            }
+        }
+
+        // Comment observers
         viewModel.comments.observe(this) { comments ->
             commentAdapter.submitList(comments)
             binding.apply {
-                cardComments.isVisible = true  // Keep the card visible
+                cardComments.isVisible = true
+                commentProgressBar.isVisible = false
                 tvNoComments.isVisible = comments.isEmpty()
                 rvComments.isVisible = comments.isNotEmpty()
+
+                // Force UI update for comments
+                rvComments.post {
+                    commentAdapter.notifyDataSetChanged()
+                }
             }
         }
 
         viewModel.isLoadingComments.observe(this) { isLoading ->
             binding.commentProgressBar.isVisible = isLoading
         }
+
+        // Current document observer
+        viewModel.currentDocument.observe(this) { document ->
+            document?.let {
+                Log.d(TAG, "Current document updated: ${it.document_id}")
+                // Refresh UI to reflect any changes
+                refreshDocuments()
+            }
+        }
+
+        // Add lifecycle observer to handle automatic refresh
+        lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                super.onResume(owner)
+                refreshDocuments()
+                loadComments()
+            }
+        })
     }
 
     private fun loadDocuments() {
@@ -654,14 +758,48 @@ class DocumentSubmissionActivity : AppCompatActivity() {
 
             val hasDraftDocs = documentAdapter.getDraftCount() > 0
             val hasPendingDocs = documentAdapter.getPendingCount() > 0
-            btnSubmit.isVisible = hasDraftDocs
-            btnUnsubmit.isVisible = hasPendingDocs
+
+            // Check all document statuses
+            val hasApprovedDoc = documentAdapter.currentList.any {
+                it.status.lowercase() == "approved"
+            }
+            val hasSubmittedDoc = documentAdapter.currentList.any {
+                it.status.lowercase() == "pending"
+            }
+            val hasMissingDoc = documentAdapter.currentList.any {
+                it.status.lowercase() == "missing"
+            }
+            val hasRejectedDoc = documentAdapter.currentList.any {
+                it.status.lowercase() == "rejected"
+            }
+
+            // Hide upload and add link buttons if:
+            // 1. Document is approved, or
+            // 2. Document is pending/submitted, or
+            // 3. Document is missing, or
+            // 4. Document is rejected
+            val shouldHideUploadButtons = hasApprovedDoc || hasSubmittedDoc || hasMissingDoc || hasRejectedDoc
+
+            // Update button visibility
+            btnUploadFile.isVisible = !shouldHideUploadButtons
+            btnAddLink.isVisible = !shouldHideUploadButtons
+
+            // Show submit button only for draft documents and when no other status exists
+            btnSubmit.isVisible = hasDraftDocs && !shouldHideUploadButtons
+
+            // Show unsubmit button only for pending documents and when not approved/missing/rejected
+            btnUnsubmit.isVisible = hasPendingDocs && !hasApprovedDoc && !hasMissingDoc && !hasRejectedDoc
 
             Log.d(TAG, """
             UI State Update:
             - Empty state: $isEmpty
             - Draft docs: $hasDraftDocs
             - Pending docs: $hasPendingDocs
+            - Has approved doc: $hasApprovedDoc
+            - Has submitted doc: $hasSubmittedDoc
+            - Has missing doc: $hasMissingDoc
+            - Has rejected doc: $hasRejectedDoc
+            - Should hide upload buttons: $shouldHideUploadButtons
             - Requirement ID: $requirementId
             - Student ID: $studentId
         """.trimIndent())

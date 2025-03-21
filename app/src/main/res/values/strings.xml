@@ -2,7 +2,7 @@
     <string name="app_name">HK ROADMAP</string>
 
     <!-- Document Management -->
-    <string name="upload_document">UPLOAD FILE</string>
+    <string name="upload_document">Upload file(s)</string>
     <string name="title_submit_documents">Submit Documents</string>
     <string name="no_attachments">No attachments</string>
     <string name="no_documents_uploaded">No documents uploaded yet</string>
@@ -18,7 +18,7 @@
 
     <!-- Document Status -->
     <string name="status_draft">Draft</string>
-    <string name="status_pending">Pending Review</string>
+    <string name="status_pending">Pending</string>
     <string name="status_missing">Missing</string>
     <string name="status_approved">Approved</string>
     <string name="status_rejected">Rejected</string>

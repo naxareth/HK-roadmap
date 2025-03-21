@@ -198,7 +198,6 @@ class MissingRequirementsFragment : Fragment() {
                                 title = firstDoc.event_title ?: "Unknown Event",
                                 description = "",
                                 date = firstDoc.requirement_due_date ?: "",
-                                location = "",
                                 created_at = "",
                                 updated_at = ""
                             ),
