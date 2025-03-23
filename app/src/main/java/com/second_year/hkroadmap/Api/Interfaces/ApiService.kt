@@ -3,6 +3,7 @@ package com.second_year.hkroadmap.Api.Interfaces
 import com.second_year.hkroadmap.Api.Models.*
 import com.second_year.hkroadmap.data.models.DepartmentsResponse
 import com.second_year.hkroadmap.data.models.Profile
+import com.second_year.hkroadmap.data.models.ProfileRequirementsResponse
 import com.second_year.hkroadmap.data.models.ProfileUpdateRequest
 import com.second_year.hkroadmap.data.models.ProfileUpdateResponse
 import com.second_year.hkroadmap.data.models.ProgramsResponse
@@ -209,6 +210,11 @@ interface ApiService {
     suspend fun getPrograms(
         @Header("Authorization") token: String
     ): Response<ProgramsResponse>
+
+    @GET("profile/requirements")
+    suspend fun getProfileRequirements(
+        @Header("Authorization") token: String
+    ): Response<ProfileRequirementsResponse>
 
 
 

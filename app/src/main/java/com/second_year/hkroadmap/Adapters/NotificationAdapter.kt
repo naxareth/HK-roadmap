@@ -33,8 +33,10 @@ class NotificationAdapter(
         private val messageText: TextView = itemView.findViewById(R.id.notificationMessage)
         private val timeText: TextView = itemView.findViewById(R.id.notificationTime)
         private val readIndicator: View = itemView.findViewById(R.id.readIndicator)
+        private val verticalIndicator: View = itemView.findViewById(R.id.verticalIndicator)
 
         fun bind(notification: NotificationResponse) {
+            // Set text content
             messageText.text = notification.notification_body
 
             // Format the timestamp
@@ -42,11 +44,26 @@ class NotificationAdapter(
             val date = dateFormat.parse(notification.created_at)
             timeText.text = date?.let { formatTimeAgo(it.time) }
 
-            // Update read indicator visibility using isRead property
-            readIndicator.visibility = if (!notification.isRead) View.VISIBLE else View.GONE
+            // Determine if notification is read
+            val isRead = notification.isRead
 
-            // Set opacity for the entire item view
-            itemView.alpha = if (notification.isRead) 0.7f else 1.0f
+            // Update read indicator visibility
+            readIndicator.visibility = if (!isRead) View.VISIBLE else View.GONE
+
+            // Set opacity for all elements
+            val alpha = if (isRead) 0.7f else 1.0f
+
+            // Apply alpha to the container views
+            itemView.alpha = alpha
+            (itemView.parent as? View)?.alpha = alpha
+
+            // Apply alpha to individual elements
+            verticalIndicator.alpha = alpha
+
+            // Apply alpha to text elements directly
+            // This ensures the text opacity changes even if the parent view's alpha doesn't propagate
+            messageText.alpha = alpha
+            timeText.alpha = alpha
 
             // Set click listener
             itemView.setOnClickListener {
@@ -57,7 +74,6 @@ class NotificationAdapter(
         private fun formatTimeAgo(timestamp: Long): String {
             val now = System.currentTimeMillis()
             val diff = now - timestamp
-
             return when {
                 diff < 60_000 -> "Just now"
                 diff < 3600_000 -> "${diff / 60_000} minutes ago"

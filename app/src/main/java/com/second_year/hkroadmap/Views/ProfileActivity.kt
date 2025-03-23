@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
@@ -71,10 +72,62 @@ class ProfileActivity : AppCompatActivity() {
             setupToolbar()
             setupObservers()
             setupViews()
+            setupScrollIndicator()
             loadData()
         } catch (e: Exception) {
             Log.e(TAG, "Error in onCreate", e)
             showError("Failed to initialize profile: ${e.message}")
+        }
+    }
+
+    private fun setupScrollIndicator() {
+        binding.nestedScrollView.setOnScrollChangeListener(NestedScrollView.OnScrollChangeListener { v, _, scrollY, _, _ ->
+            val child = v.getChildAt(0)
+            if (child != null) {
+                val childHeight = child.height
+                val scrollViewHeight = v.height
+                val isScrollable = childHeight > scrollViewHeight
+                val hasReachedBottom = scrollY >= childHeight - scrollViewHeight
+
+                binding.scrollIndicator.apply {
+                    if (isScrollable && !hasReachedBottom) {
+                        if (visibility != View.VISIBLE) {
+                            show()
+                        }
+                    } else {
+                        if (visibility == View.VISIBLE) {
+                            hide()
+                        }
+                    }
+                }
+            }
+        })
+
+        // Scroll to bottom when indicator is clicked
+        binding.scrollIndicator.setOnClickListener {
+            binding.nestedScrollView.post {
+                binding.nestedScrollView.fullScroll(View.FOCUS_DOWN)
+            }
+        }
+
+        // Check initial scroll state
+        binding.nestedScrollView.post {
+            checkScrollIndicatorVisibility()
+        }
+    }
+
+    private fun checkScrollIndicatorVisibility() {
+        val scrollView = binding.nestedScrollView
+        val child = scrollView.getChildAt(0)
+
+        if (child != null) {
+            val childHeight = child.height
+            val scrollViewHeight = scrollView.height
+            val scrollY = scrollView.scrollY
+            val isScrollable = childHeight > scrollViewHeight
+            val hasReachedBottom = scrollY >= childHeight - scrollViewHeight
+
+            binding.scrollIndicator.visibility = if (isScrollable && !hasReachedBottom) View.VISIBLE else View.GONE
         }
     }
 
@@ -115,6 +168,10 @@ class ProfileActivity : AppCompatActivity() {
                 profile?.let {
                     Log.d(TAG, "Updating UI with profile data")
                     updateProfileUI(it)
+                }
+                // Check scroll indicator after profile data is loaded
+                binding.nestedScrollView.post {
+                    checkScrollIndicatorVisibility()
                 }
             }
 

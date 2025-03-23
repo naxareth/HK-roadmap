@@ -7,14 +7,18 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.snackbar.Snackbar
 import com.second_year.hkroadmap.Api.Models.LoginRequest
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.databinding.ActivityLoginBinding
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import retrofit2.HttpException
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
+    private val TAG = "LoginActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,6 +27,7 @@ class LoginActivity : AppCompatActivity() {
 
         setupLoginButton()
         setupNavigationListeners()
+        setupInputListeners()
     }
 
     private fun setupNavigationListeners() {
@@ -35,13 +40,24 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupInputListeners() {
+        // Clear errors when user starts typing
+        binding.etEmail.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) binding.etEmail.error = null
+        }
+
+        binding.etPassword.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) binding.etPassword.error = null
+        }
+    }
+
     private fun setupLoginButton() {
         binding.btnLogin.setOnClickListener {
-            Log.d("LoginActivity", "Login button clicked")
+            Log.d(TAG, "Login button clicked")
             if (validateInputs()) {
                 performLogin()
             } else {
-                Log.w("LoginActivity", "Invalid inputs")
+                Log.w(TAG, "Invalid inputs")
             }
         }
     }
@@ -72,7 +88,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun performLogin() {
-        Log.d("LoginActivity", "Starting login process")
+        Log.d(TAG, "Starting login process")
         showLoading(true)
 
         val loginRequest = LoginRequest(
@@ -83,23 +99,62 @@ class LoginActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val response = RetrofitInstance.createApiService().studentLogin(loginRequest)
+
                 if (response.token != null) {
-                    Log.d("LoginActivity", "Login successful, token received")
+                    Log.d(TAG, "Login successful, token received")
                     TokenManager.saveToken(this@LoginActivity, response.token)
                     navigateToHome()
                 } else {
-                    Log.w("LoginActivity", "Login failed: ${response.message}")
-                    showError(response.message)
+                    Log.w(TAG, "Login failed: ${response.message}")
+
+                    // Handle specific error messages
+                    when {
+                        response.message.contains("password", ignoreCase = true) -> {
+                            binding.etPassword.error = response.message
+                        }
+                        response.message.contains("email", ignoreCase = true) ||
+                                response.message.contains("user", ignoreCase = true) -> {
+                            binding.etEmail.error = response.message
+                        }
+                        else -> {
+                            showError(response.message)
+                        }
+                    }
                 }
-            } catch (e: retrofit2.HttpException) {
-                val errorBody = e.response()?.errorBody()?.string()
-                Log.e("LoginActivity", "HTTP error during login: $errorBody", e)
-                showError("HTTP error: $errorBody")
+            } catch (e: HttpException) {
+                Log.e(TAG, "HTTP error during login: ${e.code()}", e)
+
+                try {
+                    val errorBody = e.response()?.errorBody()?.string()
+                    if (!errorBody.isNullOrEmpty()) {
+                        val errorJson = JSONObject(errorBody)
+                        val errorMessage = errorJson.optString("message", "Unknown error")
+
+                        // Handle specific error messages from error body
+                        when {
+                            errorMessage.contains("password", ignoreCase = true) -> {
+                                binding.etPassword.error = errorMessage
+                            }
+                            errorMessage.contains("email", ignoreCase = true) ||
+                                    errorMessage.contains("user", ignoreCase = true) -> {
+                                binding.etEmail.error = errorMessage
+                            }
+                            else -> {
+                                showError(errorMessage)
+                            }
+                        }
+                    } else {
+                        showError("Error: ${e.code()}")
+                    }
+                } catch (jsonEx: Exception) {
+                    Log.e(TAG, "Error parsing error response", jsonEx)
+                    showError("Server error: ${e.code()}")
+                }
             } catch (e: Exception) {
-                Log.e("LoginActivity", "Exception during login", e)
+                Log.e(TAG, "Exception during login", e)
                 handleError(e)
             } finally {
-                Log.d("LoginActivity", "Login process ended")
+                Log.d(TAG, "Login process ended")
                 showLoading(false)
             }
         }
@@ -111,12 +166,13 @@ class LoginActivity : AppCompatActivity() {
             is java.net.SocketTimeoutException -> "Connection timed out"
             else -> "Network error: ${error.message}"
         }
-        Log.e("LoginActivity", "Error occurred: $errorMessage", error)
+        Log.e(TAG, "Error occurred: $errorMessage", error)
         showError(errorMessage)
     }
 
     private fun showError(message: String) {
-        Toast.makeText(this@LoginActivity, message, Toast.LENGTH_SHORT).show()
+        // Use Snackbar for better visibility of error messages
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
     }
 
     private fun showLoading(show: Boolean) {
@@ -126,7 +182,7 @@ class LoginActivity : AppCompatActivity() {
 
     private fun navigateToHome() {
         // Navigate to the home activity
-        Log.d("LoginActivity", "Navigating to HomeActivity")
+        Log.d(TAG, "Navigating to HomeActivity")
         startActivity(Intent(this, HomeActivity::class.java))
         finish()
     }

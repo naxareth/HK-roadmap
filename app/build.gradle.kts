@@ -61,6 +61,9 @@ dependencies {
 
     implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
 
+    implementation ("com.itextpdf:itextpdf:5.5.13.3")
+    implementation ("androidx.core:core-ktx:1.8.0")
+
     implementation ("com.squareup.okhttp3:okhttp-urlconnection:4.9.0")
     implementation ("androidx.core:core-ktx:1.7.0")
     implementation ("androidx.appcompat:appcompat:1.4.1")

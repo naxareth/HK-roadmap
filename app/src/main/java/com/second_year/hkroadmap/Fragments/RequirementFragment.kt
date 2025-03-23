@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
+import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -157,18 +158,57 @@ class RequirementFragment : Fragment() {
 
     private fun setupViews() {
         Log.d(TAG, "Setting up views")
-        setupEventDetails()
         setupRecyclerView()
+        setupScrollIndicator()
         setupSortButton()
     }
 
-    private fun setupEventDetails() {
-        binding.apply {
-            tvEventTitle.text = eventTitle
-            tvEventDate.text = eventDate
+    private fun setupScrollIndicator() {
+        binding.nestedScrollView.setOnScrollChangeListener(NestedScrollView.OnScrollChangeListener { v, _, scrollY, _, _ ->
+            val child = v.getChildAt(0)
+            if (child != null) {
+                val childHeight = child.height
+                val scrollViewHeight = v.height
+                val isScrollable = childHeight > scrollViewHeight
+                val hasReachedBottom = scrollY >= childHeight - scrollViewHeight
+
+                binding.scrollIndicator.apply {
+                    if (isScrollable && !hasReachedBottom) {
+                        if (visibility != View.VISIBLE) {
+                            show()
+                        }
+                    } else {
+                        if (visibility == View.VISIBLE) {
+                            hide()
+                        }
+                    }
+                }
+            }
+        })
+
+        // Scroll to bottom when indicator is clicked
+        binding.scrollIndicator.setOnClickListener {
+            binding.nestedScrollView.post {
+                binding.nestedScrollView.fullScroll(View.FOCUS_DOWN)
+            }
         }
-        Log.d(TAG, "Event details displayed")
     }
+
+    private fun checkScrollIndicatorVisibility() {
+        val scrollView = binding.nestedScrollView
+        val child = scrollView.getChildAt(0)
+
+        if (child != null) {
+            val childHeight = child.height
+            val scrollViewHeight = scrollView.height
+            val scrollY = scrollView.scrollY
+            val isScrollable = childHeight > scrollViewHeight
+            val hasReachedBottom = scrollY >= childHeight - scrollViewHeight
+
+            binding.scrollIndicator.visibility = if (isScrollable && !hasReachedBottom) View.VISIBLE else View.GONE
+        }
+    }
+
 
     private fun setupRecyclerView() {
         requirementsAdapter = RequirementsAdapter { requirement ->
@@ -183,7 +223,6 @@ class RequirementFragment : Fragment() {
         Log.d(TAG, "RecyclerView setup completed")
     }
 
-    // Add these functions after setupRecyclerView()
     private fun setupSortButton() {
         binding.sortButton.setOnClickListener {
             showSortOptions(it)
@@ -223,6 +262,11 @@ class RequirementFragment : Fragment() {
                 }
             }
             requirementsAdapter.submitList(sortedRequirements)
+
+            // Check scroll indicator after sorting
+            binding.nestedScrollView.post {
+                checkScrollIndicatorVisibility()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error sorting requirements", e)
             showError("Error sorting requirements")
@@ -286,9 +330,14 @@ class RequirementFragment : Fragment() {
         viewModel.requirements.observe(viewLifecycleOwner) { requirements ->
             val validRequirements = requirements.filter { it.event_id == eventId }
             Log.d(TAG, "Requirements received: ${requirements.size}, Valid: ${validRequirements.size}")
-            currentRequirements = validRequirements.toMutableList() // Add this line
-            sortAndDisplayRequirements() // Replace submitList with this
+            currentRequirements = validRequirements.toMutableList()
+            sortAndDisplayRequirements()
             updateEmptyState(validRequirements.isEmpty())
+
+            // Check scroll indicator after requirements are loaded
+            binding.nestedScrollView.post {
+                checkScrollIndicatorVisibility()
+            }
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->

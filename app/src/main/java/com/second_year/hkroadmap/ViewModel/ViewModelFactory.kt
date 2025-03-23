@@ -6,6 +6,7 @@ import com.second_year.hkroadmap.Api.Interfaces.ApiService
 import com.second_year.hkroadmap.Api.Repository.RequirementRepository
 import com.second_year.hkroadmap.Repository.DocumentRepository
 import com.second_year.hkroadmap.Repository.NotificationRepository
+import com.second_year.hkroadmap.ViewModel.ProfileRequirementsViewModel
 
 class ViewModelFactory(
     private val documentRepository: DocumentRepository? = null,
@@ -31,6 +32,11 @@ class ViewModelFactory(
                 apiService?.let {
                     ProfileViewModel(it) as T
                 } ?: throw IllegalArgumentException("ApiService required for ProfileViewModel")
+            }
+            modelClass.isAssignableFrom(ProfileRequirementsViewModel::class.java) -> {
+                apiService?.let {
+                    ProfileRequirementsViewModel(it) as T
+                } ?: throw IllegalArgumentException("ApiService required for ProfileRequirementsViewModel")
             }
             modelClass.isAssignableFrom(NotificationViewModel::class.java) -> {
                 if (notificationRepository != null && token != null) {

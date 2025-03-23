@@ -56,6 +56,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     private var requirementTitle: String = ""
     private var requirementDescription: String = ""
     private var requirementDueDate: String = ""
+    private var isDataLoaded = false // Flag to track if data has been loaded
 
     companion object {
         private const val TAG = "DocumentActivity"
@@ -184,9 +185,14 @@ class DocumentSubmissionActivity : AppCompatActivity() {
     }
 
     private fun refreshDocuments() {
-        loadDocuments()
-        documentAdapter.notifyDataSetChanged()
-        updateEmptyState(documentAdapter.itemCount == 0)
+        // Only refresh if we haven't already loaded data or if we're forcing a refresh
+        if (!isDataLoaded) {
+            loadDocuments()
+        } else {
+            // Just update the UI with existing data
+            documentAdapter.notifyDataSetChanged()
+            updateEmptyState(documentAdapter.itemCount == 0)
+        }
     }
 
     // New method for loading comments
@@ -360,7 +366,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         - Draft IDs available: ${documentAdapter.getDraftDocumentIds()}
     """.trimIndent())
         viewModel.submitMultipleDocuments(token, documentIds)
-        refreshDocuments()
+        // We'll refresh in the observer when the operation completes
     }
 
     private fun unsubmitMultipleDocuments(documentIds: List<Int>) {
@@ -375,7 +381,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         - Pending IDs available: ${documentAdapter.getPendingDocumentIds()}
     """.trimIndent())
         viewModel.unsubmitMultipleDocuments(token, documentIds)
-        refreshDocuments()
+        // We'll refresh in the observer when the operation completes
     }
 
     private fun showAddLinkDialog() {
@@ -419,7 +425,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             return
         }
         viewModel.uploadLinkDocument(token, link, eventId, requirementId)
-        refreshDocuments()
+        // We'll refresh in the observer when the operation completes
     }
 
     private fun handleSelectedFile(uri: Uri) {
@@ -447,7 +453,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             return
         }
         viewModel.uploadDocument(token, file, eventId, requirementId)
-        refreshDocuments()
+        // We'll refresh in the observer when the operation completes
     }
 
     private fun showDeleteConfirmation(document: DocumentResponse) {
@@ -469,7 +475,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         }
         documentAdapter.removeDocumentId(document.document_id)
         viewModel.deleteDocument(token, document.document_id)
-        refreshDocuments()
+        // We'll refresh in the observer when the operation completes
     }
 
     private fun viewDocument(document: DocumentResponse) {
@@ -533,8 +539,6 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         }
     }
 
-
-
     override fun onDestroy() {
         try {
             _viewModel?.let {
@@ -548,7 +552,6 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             super.onDestroy()
         }
     }
-
 
     private fun isRequirementOverdue(): Boolean {
         if (requirementDueDate.isEmpty()) return false
@@ -658,13 +661,22 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                 documentAdapter.submitList(filteredDocs)
                 updateEmptyState(filteredDocs.isEmpty())
 
+                // Mark data as loaded to prevent infinite refresh
+                isDataLoaded = true
+
                 // Force UI update after data change
                 binding.rvDocuments.post {
                     documentAdapter.notifyDataSetChanged()
                 }
+
+                // Hide loading indicator
+                binding.progressBar.isVisible = false
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing documents", e)
                 showError(getString(R.string.error_processing_documents))
+                // Mark data as loaded even on error to prevent infinite refresh
+                isDataLoaded = true
+                binding.progressBar.isVisible = false
             }
         }
 
@@ -678,8 +690,9 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             error?.let {
                 showError(it)
                 viewModel.clearMessages()
-                // Refresh documents to ensure UI is in sync
-                refreshDocuments()
+                // Mark data as loaded even on error to prevent infinite refresh
+                isDataLoaded = true
+                binding.progressBar.isVisible = false
             }
         }
 
@@ -688,8 +701,9 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             message?.let {
                 showSuccess(it)
                 viewModel.clearMessages()
-                // Refresh documents after successful operation
-                refreshDocuments()
+                // Force a refresh after successful operation
+                isDataLoaded = false // Reset flag to allow refresh
+                loadDocuments()
                 // Also refresh comments if needed
                 loadComments()
             }
@@ -699,7 +713,8 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         viewModel.uploadedDocumentIds.observe(this) { documentIds ->
             if (documentIds.isNotEmpty()) {
                 Log.d(TAG, "New documents uploaded: $documentIds")
-                refreshDocuments()
+                isDataLoaded = false // Reset flag to allow refresh
+                loadDocuments()
                 viewModel.clearUploadedDocumentIds()
             }
         }
@@ -728,8 +743,9 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         viewModel.currentDocument.observe(this) { document ->
             document?.let {
                 Log.d(TAG, "Current document updated: ${it.document_id}")
-                // Refresh UI to reflect any changes
-                refreshDocuments()
+                // Reset flag to allow refresh after document update
+                isDataLoaded = false
+                loadDocuments()
             }
         }
 
@@ -737,18 +753,25 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onResume(owner: LifecycleOwner) {
                 super.onResume(owner)
-                refreshDocuments()
-                loadComments()
+                // Only refresh if needed (e.g., coming back from another activity)
+                if (!isDataLoaded) {
+                    loadDocuments()
+                    loadComments()
+                }
             }
         })
     }
 
     private fun loadDocuments() {
-        val token = TokenManager.getToken(this) ?: run {
-            redirectToLogin()
-            return
+        // Only load if we haven't already loaded or if we're forcing a refresh
+        if (!isDataLoaded) {
+            val token = TokenManager.getToken(this) ?: run {
+                redirectToLogin()
+                return
+            }
+            binding.progressBar.isVisible = true
+            viewModel.getDocumentsByEventId(token, eventId)
         }
-        viewModel.getStudentDocuments(token)
     }
 
     private fun updateEmptyState(isEmpty: Boolean) {

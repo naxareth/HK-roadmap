@@ -1,8 +1,12 @@
 <resources>
     <string name="app_name">HK ROADMAP</string>
 
+
+    <string name="profile">Profile</string>
+    <string name="logout">Logout</string>
+
     <!-- Document Management -->
-    <string name="upload_document">Upload file(s)</string>
+    <string name="upload_document">Upload file</string>
     <string name="title_submit_documents">Submit Documents</string>
     <string name="no_attachments">No attachments</string>
     <string name="no_documents_uploaded">No documents uploaded yet</string>

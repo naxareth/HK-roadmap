@@ -19,6 +19,7 @@
     <color name="gray_300">#E0E0E0</color>
     <color name="gray_200">#EEEEEE</color>
     <color name="gray_100">#F5F5F5</color>
+    <color name="gray_50">#FAFAFA</color>
 
     <!-- Document status colors -->
     <color name="status_draft">#757575</color>

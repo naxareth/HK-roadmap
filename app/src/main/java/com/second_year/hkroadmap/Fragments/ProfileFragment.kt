@@ -1,38 +1,44 @@
 package com.second_year.hkroadmap.Fragments
 
-import android.app.Activity
-import android.content.ContentValues.TAG
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
+import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
+import com.second_year.hkroadmap.Adapters.ProfileRequirementsAdapter
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
 import com.second_year.hkroadmap.Api.Interfaces.TokenManager
 import com.second_year.hkroadmap.R
-import com.second_year.hkroadmap.ViewModel.ProfileViewModel
+import com.second_year.hkroadmap.Utils.NetworkUtils
+import com.second_year.hkroadmap.ViewModel.ProfileRequirementsUiState
+import com.second_year.hkroadmap.ViewModel.ProfileRequirementsViewModel
 import com.second_year.hkroadmap.ViewModel.ViewModelFactory
-import com.second_year.hkroadmap.data.models.Profile
+import com.second_year.hkroadmap.data.models.ProfileData
+import com.second_year.hkroadmap.data.models.ProfileRequirementsData
 import com.second_year.hkroadmap.databinding.FragmentProfileBinding
-
 
 class ProfileFragment : Fragment() {
     private val TAG = "ProfileFragment"
     private var _binding: FragmentProfileBinding? = null
     private val binding get() = _binding!!
-    private lateinit var viewModel: ProfileViewModel
+    private lateinit var viewModel: ProfileRequirementsViewModel
     private var token: String? = null
+    private lateinit var requirementsAdapter: ProfileRequirementsAdapter
+    private var isShareDialogShown = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Removed setHasOptionsMenu(true) to disable the options menu
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -43,19 +49,72 @@ class ProfileFragment : Fragment() {
         return binding.root
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == SHARE_REQUEST_CODE) {
+            // Share dialog has been dismissed
+            isShareDialogShown = false
+            viewModel.resetLoadingState()
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         Log.d(TAG, "onViewCreated called")
 
         try {
+            setupRecyclerView()
+            setupScrollIndicator()
             if (!setupViewModel()) {
                 return
             }
             setupObservers()
+            setupExportButton()
             loadData()
         } catch (e: Exception) {
             Log.e(TAG, "Error in onViewCreated", e)
             showError("Failed to initialize profile: ${e.message}")
+        }
+    }
+
+    private fun setupScrollIndicator() {
+        binding.nestedScrollView.setOnScrollChangeListener(NestedScrollView.OnScrollChangeListener { v, _, scrollY, _, _ ->
+            val child = v.getChildAt(0)
+            if (child != null) {
+                val childHeight = child.height
+                val scrollViewHeight = v.height
+                val isScrollable = childHeight > scrollViewHeight
+                val hasReachedBottom = scrollY >= childHeight - scrollViewHeight
+
+                binding.scrollIndicator.apply {
+                    if (isScrollable && !hasReachedBottom) {
+                        if (visibility != View.VISIBLE) {
+                            show()
+                        }
+                    } else {
+                        if (visibility == View.VISIBLE) {
+                            hide()
+                        }
+                    }
+                }
+            }
+        })
+
+        // Scroll to bottom when indicator is clicked
+        binding.scrollIndicator.setOnClickListener {
+            binding.nestedScrollView.post {
+                binding.nestedScrollView.fullScroll(View.FOCUS_DOWN)
+            }
+        }
+    }
+
+    // Removed onCreateOptionsMenu and onOptionsItemSelected methods
+
+    private fun setupRecyclerView() {
+        requirementsAdapter = ProfileRequirementsAdapter()
+        binding.rvRequirements.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = requirementsAdapter
         }
     }
 
@@ -71,7 +130,7 @@ class ProfileFragment : Fragment() {
             }
 
             val factory = ViewModelFactory(apiService = RetrofitInstance.createApiService())
-            viewModel = ViewModelProvider(this, factory)[ProfileViewModel::class.java]
+            viewModel = ViewModelProvider(this, factory)[ProfileRequirementsViewModel::class.java]
             Log.d(TAG, "ViewModel setup complete")
             return true
         } catch (e: Exception) {
@@ -82,24 +141,35 @@ class ProfileFragment : Fragment() {
 
     private fun setupObservers() {
         try {
-            viewModel.profile.observe(viewLifecycleOwner) { profile ->
-                Log.d(TAG, "Profile data received")
-                profile?.let {
-                    Log.d(TAG, "Updating UI with profile data")
-                    updateProfileUI(it)
+            viewModel.uiState.observe(viewLifecycleOwner) { state ->
+                when (state) {
+                    is ProfileRequirementsUiState.Loading -> {
+                        showLoading(true)
+                    }
+                    is ProfileRequirementsUiState.Success -> {
+                        showLoading(false)
+                        updateUI(state.data)
+                    }
+                    is ProfileRequirementsUiState.Error -> {
+                        showLoading(false)
+                        showError(state.message)
+                    }
                 }
             }
 
+            viewModel.exportFileUri.observe(viewLifecycleOwner) { uri ->
+                uri?.let {
+                    shareExportedFile(it)
+                }
+            }
+
+            // Observe loading state
             viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-                Log.d(TAG, "Loading state changed: $isLoading")
-                binding.progressBar.isVisible = isLoading
-            }
-
-            viewModel.error.observe(viewLifecycleOwner) { message ->
-                message?.let {
-                    showError(it)
+                if (!isShareDialogShown) {
+                    showLoading(isLoading)
                 }
             }
+
             Log.d(TAG, "Observers setup complete")
         } catch (e: Exception) {
             Log.e(TAG, "Error setting up observers", e)
@@ -107,15 +177,32 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    private fun setupExportButton() {
+        binding.btnExport.setOnClickListener {
+            exportProfileData()
+        }
+    }
+
     private fun loadData() {
+        if (!NetworkUtils.isNetworkAvailable(requireContext())) {
+            showError("No internet connection. Please check your network and try again.")
+            return
+        }
+
         token?.let { token ->
-            viewModel.fetchProfile(token)
+            viewModel.fetchProfileRequirements(token, requireContext())
         } ?: run {
             showError("Not logged in")
         }
     }
 
-    private fun updateProfileUI(profile: Profile) {
+    private fun updateUI(data: ProfileRequirementsData) {
+        Log.d(TAG, "Profile requirements data received")
+        updateProfileUI(data.profile)
+        updateRequirementsUI(data)
+    }
+
+    private fun updateProfileUI(profile: ProfileData) {
         Log.d(TAG, "Profile data: $profile")
         with(binding) {
             // Basic Info
@@ -136,6 +223,15 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    private fun updateRequirementsUI(data: ProfileRequirementsData) {
+        val requirementGroups = viewModel.getRequirementGroups(data)
+        requirementsAdapter.submitList(requirementGroups)
+
+        // Show or hide the requirements section based on whether there are requirements
+        binding.requirementsSection.isVisible = requirementGroups.isNotEmpty()
+        binding.tvNoRequirements.isVisible = requirementGroups.isEmpty() && binding.requirementsSection.isVisible
+    }
+
     private fun loadProfileImage(imageUrl: String) {
         Glide.with(requireContext())
             .load(imageUrl)
@@ -152,6 +248,46 @@ class ProfileFragment : Fragment() {
             .into(binding.ivProfilePicture)
     }
 
+    private fun exportProfileData() {
+        if (!NetworkUtils.isNetworkAvailable(requireContext())) {
+            showError("No internet connection. Please check your network and try again.")
+            return
+        }
+
+        val currentState = viewModel.uiState.value
+        if (currentState !is ProfileRequirementsUiState.Success) {
+            showError("No data available to export")
+            return
+        }
+
+        showLoading(true)
+        viewModel.exportProfileRequirements(requireContext())
+    }
+
+    private fun shareExportedFile(uri: Uri) {
+        // Set flag to indicate share dialog is shown
+        isShareDialogShown = true
+
+        // Hide loading indicator
+        showLoading(false)
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"  // Changed from text/csv to application/pdf
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        // Create a chooser intent
+        val chooserIntent = Intent.createChooser(intent, "Share Profile Requirements")
+
+        // Start activity for result to detect when dialog is dismissed
+        startActivityForResult(chooserIntent, SHARE_REQUEST_CODE)
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        binding.progressBar.isVisible = isLoading
+    }
+
     private fun showError(message: String) {
         val snackbar = Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
         snackbar.setAction("OK") { snackbar.dismiss() }
@@ -165,5 +301,6 @@ class ProfileFragment : Fragment() {
 
     companion object {
         fun newInstance() = ProfileFragment()
+        private const val SHARE_REQUEST_CODE = 123
     }
 }

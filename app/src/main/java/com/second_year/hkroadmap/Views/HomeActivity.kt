@@ -14,11 +14,13 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.core.widget.NestedScrollView
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.imageview.ShapeableImageView
 import com.second_year.hkroadmap.Adapters.EventsAdapter
 import com.second_year.hkroadmap.Api.Models.EventResponse
@@ -68,15 +70,47 @@ class HomeActivity : AppCompatActivity() {
 
             setupToolbar()
             setupRecyclerView()
+            setupScrollIndicator()
             setupViewAllRequirementsButton()
             setupSortButton()
             setupUnreadNotificationCount()
-            setupUnreadAnnouncementCount()  // Add this
+            setupUnreadAnnouncementCount()
             fetchEvents()
         } catch (e: Exception) {
             logError("Error in onCreate", e)
         }
         startPeriodicRefresh()
+    }
+
+    private fun setupScrollIndicator() {
+        binding.nestedScrollView.setOnScrollChangeListener(NestedScrollView.OnScrollChangeListener { v, _, scrollY, _, _ ->
+            val child = v.getChildAt(0)
+            if (child != null) {
+                val childHeight = child.height
+                val scrollViewHeight = v.height
+                val isScrollable = childHeight > scrollViewHeight
+                val hasReachedBottom = scrollY >= childHeight - scrollViewHeight
+
+                binding.scrollIndicator.apply {
+                    if (isScrollable && !hasReachedBottom) {
+                        if (visibility != View.VISIBLE) {
+                            show()
+                        }
+                    } else {
+                        if (visibility == View.VISIBLE) {
+                            hide()
+                        }
+                    }
+                }
+            }
+        })
+
+        // Scroll to bottom when indicator is clicked
+        binding.scrollIndicator.setOnClickListener {
+            binding.nestedScrollView.post {
+                binding.nestedScrollView.fullScroll(View.FOCUS_DOWN)
+            }
+        }
     }
 
     private fun startPeriodicRefresh() {
@@ -93,8 +127,6 @@ class HomeActivity : AppCompatActivity() {
             }
         }
     }
-
-
 
     private fun setupToolbar() {
         try {
@@ -114,7 +146,7 @@ class HomeActivity : AppCompatActivity() {
             logError("Error setting up toolbar", e)
         }
     }
-    // Add this function
+
     private fun setupUnreadAnnouncementCount() {
         val token = TokenManager.getToken(this) ?: return
 
@@ -124,7 +156,7 @@ class HomeActivity : AppCompatActivity() {
                     .getAnnouncementUnreadCount("Bearer $token")
 
                 if (response.isSuccessful && response.body() != null) {
-                    val unreadCount = response.body()!!.unread_count  // Changed from unreadCount to unread_count
+                    val unreadCount = response.body()!!.unread_count
                     updateAnnouncementBadge(unreadCount)
                 }
             } catch (e: Exception) {
@@ -133,7 +165,6 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    // Add this function
     private fun updateAnnouncementBadge(count: Int) {
         try {
             val announcementMenuItem = binding.toolbar.menu.findItem(R.id.action_announcements)
@@ -215,7 +246,6 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    // Update this function
     private fun navigateToAnnouncements() {
         try {
             Intent(this, AnnouncementActivity::class.java).also { intent ->
@@ -274,9 +304,29 @@ class HomeActivity : AppCompatActivity() {
                 SortOrder.DATE_DESC -> currentEvents.sortedByDescending { parseEventDate(it.date) }
             }
             eventsAdapter.submitList(sortedEvents)
+
+            // Check if we need to show the scroll indicator after sorting
+            binding.nestedScrollView.post {
+                checkScrollIndicatorVisibility()
+            }
         } catch (e: Exception) {
             logError("Error sorting events", e)
             showToast("Error sorting events")
+        }
+    }
+
+    private fun checkScrollIndicatorVisibility() {
+        val scrollView = binding.nestedScrollView
+        val child = scrollView.getChildAt(0)
+
+        if (child != null) {
+            val childHeight = child.height
+            val scrollViewHeight = scrollView.height
+            val scrollY = scrollView.scrollY
+            val isScrollable = childHeight > scrollViewHeight
+            val hasReachedBottom = scrollY >= childHeight - scrollViewHeight
+
+            binding.scrollIndicator.visibility = if (isScrollable && !hasReachedBottom) View.VISIBLE else View.GONE
         }
     }
 
@@ -356,7 +406,6 @@ class HomeActivity : AppCompatActivity() {
         Intent(this@HomeActivity, RequirementActivity::class.java).also { intent ->
             intent.putExtra("event_id", event.id)
             intent.putExtra("event_title", event.title)
-            intent.putExtra("event_date", event.date)
             startActivity(intent)
         }
     }
@@ -399,12 +448,32 @@ class HomeActivity : AppCompatActivity() {
                 } else {
                     Log.d(TAG, "Setting ${currentEvents.size} events to adapter")
                     sortAndDisplayEvents() // Use sorting function instead of direct submitList
+
+                    // Check scroll indicator after events are loaded
+                    binding.nestedScrollView.post {
+                        checkScrollIndicatorVisibility()
+                    }
                 }
             } catch (e: Exception) {
                 logError("Failed to fetch events", e)
                 showToast("Failed to load events: ${e.message}")
             }
         }
+    }
+
+    private fun showLogoutConfirmationDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Logout")
+            .setMessage("Are you sure you want to logout?")
+            .setPositiveButton("Yes") { dialog, _ ->
+                dialog.dismiss()
+                handleLogout()
+            }
+            .setNegativeButton("No") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setCancelable(true)
+            .show()
     }
 
     private fun handleLogout() {
@@ -483,22 +552,49 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun showProfileMenu(view: View) {
-        PopupMenu(this, view).apply {
-            menuInflater.inflate(R.menu.profile_menu, menu)
-            setOnMenuItemClickListener { menuItem ->
-                when (menuItem.itemId) {
-                    R.id.action_view_profile -> {
-                        navigateToProfile()
-                        true
-                    }
-                    R.id.action_logout -> {
-                        handleLogout()
-                        true
-                    }
-                    else -> false
-                }
+        try {
+            // Create a custom dialog for the profile menu
+            val dialog = MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_App_MaterialAlertDialog)
+                .setView(R.layout.dialog_profile_menu)
+                .create()
+
+            dialog.show()
+
+            // Set up the menu items
+            val viewProfileItem = dialog.findViewById<View>(R.id.menu_view_profile)
+            val logoutItem = dialog.findViewById<View>(R.id.menu_logout)
+
+            // Set click listeners
+            viewProfileItem?.setOnClickListener {
+                dialog.dismiss()
+                navigateToProfile()
             }
-            show()
+
+            logoutItem?.setOnClickListener {
+                dialog.dismiss()
+                showLogoutConfirmationDialog()
+            }
+
+        } catch (e: Exception) {
+            logError("Error showing profile menu", e)
+            // Fallback to standard popup menu if custom implementation fails
+            PopupMenu(this, view).apply {
+                menuInflater.inflate(R.menu.profile_menu, menu)
+                setOnMenuItemClickListener { menuItem ->
+                    when (menuItem.itemId) {
+                        R.id.action_view_profile -> {
+                            navigateToProfile()
+                            true
+                        }
+                        R.id.action_logout -> {
+                            showLogoutConfirmationDialog()
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                show()
+            }
         }
     }
 
