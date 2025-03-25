@@ -35,14 +35,36 @@
                     android:layout_height="60dp"
                     android:src="@mipmap/ic_launcher" />
 
-                <TextView
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:text="HK Roadmap"
-                    android:textColor="@color/primary_green"
-                    android:textSize="32sp"
-                    android:textStyle="bold" />
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="H"
+                        android:textColor="@color/primary_green"
+                        android:textSize="32sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="K"
+                        android:textColor="#B3BB1D"
+                        android:textSize="32sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=" Roadmap"
+                        android:textColor="@color/primary_green"
+                        android:textSize="32sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Tagline -->
@@ -173,6 +195,22 @@
                     android:text="Forgot Password?"
                     android:textColor="@color/error_color"
                     android:textSize="16sp" />
+
+                <!-- New Welcome Screen Link -->
+                <TextView
+                    android:id="@+id/viewWelcomeScreen"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:text="About the app"
+                    android:textColor="@color/primary_green"
+                    android:textSize="16sp"
+                    android:drawableStart="@drawable/ic_info"
+                    android:drawablePadding="4dp"
+                    android:drawableTint="@color/primary_green"
+                    android:padding="4dp" />
             </LinearLayout>
 
             <ProgressBar

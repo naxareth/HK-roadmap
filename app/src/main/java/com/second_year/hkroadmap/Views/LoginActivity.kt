@@ -38,6 +38,11 @@ class LoginActivity : AppCompatActivity() {
         binding.textViewForgotPassword.setOnClickListener {
             startActivity(Intent(this, ForgotPasswordActivity::class.java))
         }
+
+        // Add welcome screen navigation
+        binding.viewWelcomeScreen.setOnClickListener {
+            startActivity(Intent(this, WelcomeActivity::class.java))
+        }
     }
 
     private fun setupInputListeners() {
