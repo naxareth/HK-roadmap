@@ -1,7 +1,305 @@
+
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.HKroadmap" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <!-- Disable dynamic colors -->
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/gray_900</item>
+
+        <!-- Toolbar and AppBar styles -->
+        <item name="toolbarStyle">@style/Widget.App.Toolbar.Dark</item>
+        <item name="actionBarStyle">@style/Widget.App.ActionBar.Dark</item>
+        <item name="appBarLayoutStyle">@style/Widget.App.AppBarLayout.Dark</item>
+        <item name="elevationOverlayEnabled">false</item>
+        <item name="elevationOverlayColor">@android:color/transparent</item>
+
+        <!-- Global text appearances -->
+        <item name="android:textViewStyle">@style/TextAppearance.App.Default</item>
+        <item name="textAppearanceBody1">@style/TextAppearance.App.Default</item>
+        <item name="textAppearanceBody2">@style/TextAppearance.App.Default</item>
+        <item name="textAppearanceHeadline6">@style/TextAppearance.App.Headline</item>
+
+        <!-- Global component styles -->
+        <item name="android:buttonStyle">@style/Widget.App.Button.Dark</item>
+        <item name="android:editTextStyle">@style/Widget.App.EditText.Dark</item>
+        <item name="textInputStyle">@style/Widget.App.TextInputLayout.Dark</item>
+        <item name="bottomNavigationStyle">@style/Widget.App.BottomNavigationView.Dark</item>
+        <item name="radioButtonStyle">@style/Widget.App.RadioButton.Dark</item>
+        <item name="checkboxStyle">@style/Widget.App.CheckBox.Dark</item>
+
+        <!-- Dark theme colors -->
+        <item name="colorPrimary">@color/primary_green_light</item>
+        <item name="colorPrimaryVariant">@color/primary_green</item>
+        <item name="colorPrimaryDark">@color/gray_900</item>
+        <item name="colorOnPrimary">@color/gray_900</item>
+        <item name="colorSecondary">@color/secondary_green_light</item>
+        <item name="colorSecondaryVariant">@color/secondary_green</item>
+        <item name="colorOnSecondary">@color/gray_900</item>
+        <item name="colorAccent">@color/primary_green_light</item>
+
+        <!-- Material3 specific color overrides -->
+        <item name="colorPrimaryContainer">@color/primary_green</item>
+        <item name="colorOnPrimaryContainer">@color/white</item>
+        <item name="colorSecondaryContainer">@color/secondary_green</item>
+        <item name="colorOnSecondaryContainer">@color/white</item>
+        <item name="colorTertiary">@color/primary_green_light</item>
+        <item name="colorOnTertiary">@color/gray_900</item>
+        <item name="colorTertiaryContainer">@color/primary_green</item>
+        <item name="colorOnTertiaryContainer">@color/white</item>
+
+        <!-- Background and text colors -->
+        <item name="android:colorBackground">@color/gray_900</item>
+        <item name="android:windowBackground">@color/gray_900</item>
+        <item name="colorSurface">@color/gray_800</item>
+        <item name="colorOnSurface">@color/white</item>
+        <item name="colorOnBackground">@color/white</item>
+        <item name="colorSurfaceVariant">@color/gray_800</item>
+        <item name="colorOnSurfaceVariant">@color/gray_300</item>
+
+        <!-- Ripple and selection colors -->
+        <item name="colorControlHighlight">@color/ripple_green_dark</item>
+        <item name="android:colorControlHighlight">@color/ripple_green_dark</item>
+        <item name="colorControlActivated">@color/primary_green_light</item>
+        <item name="android:colorControlActivated">@color/primary_green_light</item>
+        <item name="colorControlNormal">@color/gray_400</item>
+        <item name="android:colorControlNormal">@color/gray_400</item>
+
+        <!-- Dialog and popup styling -->
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog.Dark</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog.Dark</item>
+        <item name="dialogTheme">@style/ThemeOverlay.App.Dialog.Dark</item>
+        <item name="android:dialogTheme">@style/ThemeOverlay.App.Dialog.Dark</item>
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.App.BottomSheetDialog.Dark</item>
+        <item name="popupMenuStyle">@style/Widget.App.PopupMenu.Dark</item>
+        <item name="android:popupMenuStyle">@style/Widget.App.PopupMenu.Dark</item>
+        <item name="android:popupBackground">@color/gray_800</item>
+    </style>
+
+    <!-- Toolbar and AppBar Dark Styles -->
+    <style name="Widget.App.Toolbar.Dark" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@color/gray_800</item>
+        <item name="android:elevation">4dp</item>
+        <item name="titleTextColor">@color/white</item>
+        <item name="subtitleTextColor">@color/gray_300</item>
+        <item name="colorControlNormal">@color/primary_green_light</item>
+        <item name="popupTheme">@style/ThemeOverlay.App.PopupMenu.Dark</item>
+    </style>
+
+    <style name="Widget.App.ActionBar.Dark" parent="Widget.Material3.ActionBar.Solid">
+        <item name="background">@color/gray_800</item>
+        <item name="elevation">4dp</item>
+        <item name="titleTextStyle">@style/TextAppearance.App.ActionBar.Title.Dark</item>
+        <item name="subtitleTextStyle">@style/TextAppearance.App.ActionBar.Subtitle.Dark</item>
+    </style>
+
+    <style name="Widget.App.AppBarLayout.Dark" parent="Widget.Material3.AppBarLayout">
+        <item name="android:background">@color/gray_800</item>
+        <item name="android:elevation">4dp</item>
+        <item name="liftOnScroll">false</item>
+        <item name="statusBarForeground">@null</item>
+    </style>
+
+    <style name="TextAppearance.App.ActionBar.Title.Dark" parent="TextAppearance.Material3.ActionBar.Title">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:fontFamily">@font/signika_medium</item>
+    </style>
+
+    <style name="TextAppearance.App.ActionBar.Subtitle.Dark" parent="TextAppearance.Material3.ActionBar.Subtitle">
+        <item name="android:textColor">@color/gray_300</item>
+        <item name="android:fontFamily">@font/signika_regular</item>
+    </style>
+
+    <style name="ThemeOverlay.App.PopupMenu.Dark" parent="ThemeOverlay.Material3.Dark">
+        <item name="android:colorBackground">@color/gray_800</item>
+        <item name="colorPrimary">@color/primary_green_light</item>
+    </style>
+
+    <!-- Dialog Dark Styles -->
+    <style name="ThemeOverlay.App.MaterialAlertDialog.Dark" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/gray_800</item>
+        <item name="colorPrimary">@color/primary_green_light</item>
+        <item name="colorSecondary">@color/primary_green_light</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.App.Button.TextButton.Dialog.Dark</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.App.Button.TextButton.Dialog.Dark</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.App.Button.TextButton.Dialog.Dark</item>
+        <item name="android:background">@color/gray_800</item>
+        <item name="android:windowBackground">@color/gray_800</item>
+        <item name="android:colorBackground">@color/gray_800</item>
+    </style>
+
+    <style name="ThemeOverlay.App.Dialog.Dark" parent="ThemeOverlay.Material3.Dialog">
+        <item name="colorSurface">@color/gray_800</item>
+        <item name="colorPrimary">@color/primary_green_light</item>
+        <item name="colorSecondary">@color/primary_green_light</item>
+        <item name="android:background">@color/gray_800</item>
+        <item name="android:windowBackground">@color/gray_800</item>
+        <item name="android:colorBackground">@color/gray_800</item>
+    </style>
+
+    <style name="ThemeOverlay.App.BottomSheetDialog.Dark" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.App.BottomSheet.Dark</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackground">@color/gray_800</item>
+    </style>
+
+    <style name="Widget.App.BottomSheet.Dark" parent="Widget.Material3.BottomSheet">
+        <item name="backgroundTint">@color/gray_800</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.App.LargeComponent</item>
+    </style>
+
+    <style name="ShapeAppearance.App.LargeComponent" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <style name="Widget.App.Button.TextButton.Dialog.Dark" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/primary_green_light</item>
+        <item name="rippleColor">@color/ripple_green_dark</item>
+        <item name="android:fontFamily">@font/signika_medium</item>
+    </style>
+
+    <style name="Widget.App.PopupMenu.Dark" parent="Widget.Material3.PopupMenu">
+        <item name="android:popupBackground">@color/gray_800</item>
+    </style>
+
+    <!-- Dark theme specific styles -->
+    <style name="Widget.App.Button.Dark" parent="Widget.MaterialComponents.Button">
+        <item name="android:fontFamily">@font/signika_medium</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="backgroundTint">@color/primary_green_light</item>
+        <item name="android:textColor">@color/gray_900</item>
+        <item name="rippleColor">@color/ripple_green_dark</item>
+    </style>
+
+    <style name="Widget.App.EditText.Dark" parent="Widget.MaterialComponents.TextInputEditText.OutlinedBox">
+        <item name="android:fontFamily">@font/signika_regular</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textColorHint">@color/gray_400</item>
+        <item name="android:backgroundTint">@color/gray_800</item>
+    </style>
+
+    <style name="Widget.App.TextInputLayout.Dark" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="hintTextAppearance">@style/TextAppearance.App.InputHint.Dark</item>
+        <item name="errorTextAppearance">@style/TextAppearance.App.InputError</item>
+        <item name="boxStrokeColor">@color/primary_green_light</item>
+        <item name="hintTextColor">@color/primary_green_light</item>
+        <item name="android:textColorHint">@color/gray_400</item>
+        <item name="boxBackgroundColor">@color/gray_800</item>
+        <item name="endIconTint">@color/primary_green_light</item>
+    </style>
+
+    <!-- Bottom Navigation Dark Style -->
+    <style name="Widget.App.BottomNavigationView.Dark" parent="Widget.Material3.BottomNavigationView">
+        <item name="itemRippleColor">@color/ripple_green_dark</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.App.BottomNavigationView.ActiveIndicator.Dark</item>
+        <item name="itemTextColor">@color/white</item>
+        <item name="itemIconTint">@color/white</item>
+        <item name="backgroundColor">@color/gray_800</item>
+    </style>
+
+    <style name="Widget.App.BottomNavigationView.ActiveIndicator.Dark" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@color/primary_green_light</item>
+    </style>
+
+    <!-- Radio Button Dark Style -->
+    <style name="Widget.App.RadioButton.Dark" parent="Widget.MaterialComponents.CompoundButton.RadioButton">
+        <item name="android:textColor">@color/white</item>
+        <item name="buttonTint">@color/primary_green_light</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Default</item>
+    </style>
+
+    <!-- Checkbox Dark Style -->
+    <style name="Widget.App.CheckBox.Dark" parent="Widget.MaterialComponents.CompoundButton.CheckBox">
+        <item name="android:textColor">@color/white</item>
+        <item name="buttonTint">@color/primary_green_light</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Default</item>
+    </style>
+
+    <!-- Text Appearances for Dark Theme -->
+    <style name="TextAppearance.App.Default" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:fontFamily">@font/signika_regular</item>
+        <item name="fontFamily">@font/signika_regular</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="TextAppearance.App.Headline" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:fontFamily">@font/signika_medium</item>
+        <item name="fontFamily">@font/signika_medium</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <!-- Input Hint Style for Dark Theme -->
+    <style name="TextAppearance.App.InputHint.Dark" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:fontFamily">@font/signika_regular</item>
+        <item name="fontFamily">@font/signika_regular</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/gray_400</item>
+    </style>
+
+    <!-- Input Error Style for Dark Theme -->
+    <style name="TextAppearance.App.InputError" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:fontFamily">@font/signika_regular</item>
+        <item name="fontFamily">@font/signika_regular</item>
+        <item name="android:textColor">@color/error_red</item>
+    </style>
+
+    <!-- Chip Styles for Dark Theme -->
+    <style name="Widget.App.ChipGroup.Dark" parent="Widget.MaterialComponents.ChipGroup">
+        <item name="chipSpacingHorizontal">8dp</item>
+        <item name="chipSpacingVertical">4dp</item>
+        <item name="singleSelection">true</item>
+    </style>
+
+    <style name="Widget.App.Chip.Dark" parent="Widget.MaterialComponents.Chip.Choice">
+        <item name="android:textColor">@color/white</item>
+        <item name="chipBackgroundColor">@color/chip_background_color_dark</item>
+        <item name="rippleColor">@color/ripple_green_dark</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipStrokeColor">@color/gray_600</item>
+        <item name="android:textAppearance">@style/TextAppearance.App.Chip.Dark</item>
+        <item name="checkedIconVisible">false</item>
+    </style>
+
+    <style name="TextAppearance.App.Chip.Dark" parent="TextAppearance.MaterialComponents.Chip">
+        <item name="android:fontFamily">@font/signika_regular</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <!-- Status Chip Styles for Dark Theme -->
+    <style name="Widget.App.Chip.Status.Dark" parent="Widget.App.Chip.Dark">
+        <item name="chipMinHeight">32dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="chipStartPadding">8dp</item>
+        <item name="chipEndPadding">8dp</item>
+    </style>
+
+    <style name="Widget.App.Chip.Status.Draft.Dark" parent="Widget.App.Chip.Status.Dark">
+        <item name="chipBackgroundColor">@color/status_draft</item>
+        <item name="chipStrokeColor">@color/status_draft</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="Widget.App.Chip.Status.Pending.Dark" parent="Widget.App.Chip.Status.Dark">
+        <item name="chipBackgroundColor">@color/status_pending</item>
+        <item name="chipStrokeColor">@color/status_pending</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="Widget.App.Chip.Status.Approved.Dark" parent="Widget.App.Chip.Status.Dark">
+        <item name="chipBackgroundColor">@color/status_approved</item>
+        <item name="chipStrokeColor">@color/status_approved</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="Widget.App.Chip.Status.Rejected.Dark" parent="Widget.App.Chip.Status.Dark">
+        <item name="chipBackgroundColor">@color/status_rejected</item>
+        <item name="chipStrokeColor">@color/status_rejected</item>
+        <item name="android:textColor">@color/white</item>
     </style>
 </resources>
