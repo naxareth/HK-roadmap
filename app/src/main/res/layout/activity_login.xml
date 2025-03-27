@@ -80,7 +80,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="12dp"
-                    android:text="Track Your Tasks And Stay Updated"
+                    android:text="Track Your Requirements And Stay Updated"
                     android:textColor="@color/white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
