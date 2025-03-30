@@ -1,6 +1,11 @@
 package com.second_year.hkroadmap.Views
 
+import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -19,9 +24,11 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.bumptech.glide.Glide
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.imageview.ShapeableImageView
+import com.google.android.material.snackbar.Snackbar
 import com.second_year.hkroadmap.Adapters.EventsAdapter
 import com.second_year.hkroadmap.Api.Models.EventResponse
 import com.second_year.hkroadmap.Api.Interfaces.RetrofitInstance
@@ -43,9 +50,14 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var eventsAdapter: EventsAdapter
     private val TAG = "HomeActivity"
     private var refreshJob: Job? = null
+    private var networkJob: Job? = null
 
     private var currentEvents = mutableListOf<EventResponse>()
     private var currentSortOrder = SortOrder.DATE_DESC
+
+    private lateinit var connectivityManager: ConnectivityManager
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var isNetworkAvailable = true
 
     private enum class SortOrder {
         DATE_ASC, DATE_DESC
@@ -68,6 +80,7 @@ class HomeActivity : AppCompatActivity() {
             binding = ActivityHomeBinding.inflate(layoutInflater)
             setContentView(binding.root)
 
+            setupNetworkMonitoring()
             setupToolbar()
             setupRecyclerView()
             setupScrollIndicator()
@@ -75,11 +88,202 @@ class HomeActivity : AppCompatActivity() {
             setupSortButton()
             setupUnreadNotificationCount()
             setupUnreadAnnouncementCount()
-            fetchEvents()
+            setupRetryButton()
+            setupSwipeRefresh()
+
+            // Initial check for network and fetch events
+            if (isNetworkAvailable()) {
+                fetchEvents()
+            } else {
+                showNetworkError()
+            }
         } catch (e: Exception) {
             logError("Error in onCreate", e)
         }
         startPeriodicRefresh()
+    }
+
+    private fun setupSwipeRefresh() {
+        binding.swipeRefreshLayout.apply {
+            setColorSchemeResources(R.color.primary_green)
+            setProgressBackgroundColorSchemeResource(android.R.color.white)
+
+            setOnRefreshListener {
+                if (isNetworkAvailable()) {
+                    Log.d(TAG, "SwipeRefresh: Refreshing content")
+                    refreshAllContent()
+                } else {
+                    Log.d(TAG, "SwipeRefresh: No network available")
+                    isRefreshing = false
+                    showToast(getString(R.string.no_internet_connection))
+                }
+            }
+        }
+    }
+
+    private fun refreshAllContent() {
+        lifecycleScope.launch {
+            try {
+                // Refresh all data
+                fetchEvents()
+                setupUnreadNotificationCount()
+                setupUnreadAnnouncementCount()
+                refreshProfilePicture()
+
+                // Delay a bit to ensure the refresh indicator is visible for a moment
+                delay(500)
+
+                // Hide the refresh indicator
+                binding.swipeRefreshLayout.isRefreshing = false
+
+                Log.d(TAG, "Content refreshed successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing content", e)
+                binding.swipeRefreshLayout.isRefreshing = false
+                showToast("Error refreshing content")
+            }
+        }
+    }
+
+    private fun setupNetworkMonitoring() {
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        // Check initial network state
+        isNetworkAvailable = isNetworkAvailable()
+
+        // Setup network callback
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                Log.d(TAG, "Network available")
+                runOnUiThread {
+                    if (!isNetworkAvailable) {
+                        isNetworkAvailable = true
+                        showNetworkRestored()
+                        fetchEvents()
+                    }
+                }
+            }
+
+            override fun onLost(network: Network) {
+                Log.d(TAG, "Network lost")
+                runOnUiThread {
+                    isNetworkAvailable = false
+                    showNetworkError()
+                }
+            }
+        }
+
+        val networkRequest = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        connectivityManager.registerNetworkCallback(networkRequest, networkCallback!!)
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        try {
+            val networkCapabilities = connectivityManager.getNetworkCapabilities(
+                connectivityManager.activeNetwork
+            )
+            return networkCapabilities != null && (
+                    networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                    )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking network availability", e)
+            return false
+        }
+    }
+
+
+    private fun showNetworkError() {
+        try {
+            // Access the networkErrorView from the binding and set its visibility
+            val networkErrorView = findViewById<View>(R.id.networkErrorView)
+            networkErrorView?.visibility = View.VISIBLE
+
+            // Hide the scroll view and indicator
+            binding.swipeRefreshLayout.visibility = View.GONE
+            binding.scrollIndicator.visibility = View.GONE
+
+            // Hide all interactive elements
+            binding.viewAllRequirementsBtn.visibility = View.GONE
+            binding.sortButton.visibility = View.GONE
+            binding.profileContainer?.isEnabled = false
+
+            // Safely disable menu items if menu is initialized
+            binding.toolbar.menu?.let { menu ->
+                for (i in 0 until menu.size()) {
+                    menu.getItem(i)?.isEnabled = false
+                }
+            }
+
+            // Show only the retry button
+            val retryButton = findViewById<View>(R.id.buttonRetry)
+            retryButton?.visibility = View.VISIBLE
+
+            Log.d(TAG, "Network error UI updated")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing network error UI", e)
+        }
+    }
+
+    private fun showNetworkRestored() {
+        try {
+            // Access the networkErrorView from the binding and set its visibility
+            val networkErrorView = findViewById<View>(R.id.networkErrorView)
+            networkErrorView?.visibility = View.GONE
+
+            // Show the scroll view
+            binding.swipeRefreshLayout.visibility = View.VISIBLE
+
+            // Restore all interactive elements
+            binding.viewAllRequirementsBtn.visibility = View.VISIBLE
+            binding.sortButton.visibility = View.VISIBLE
+            binding.profileContainer?.isEnabled = true
+
+            // Safely enable menu items if menu is initialized
+            binding.toolbar.menu?.let { menu ->
+                for (i in 0 until menu.size()) {
+                    menu.getItem(i)?.isEnabled = true
+                }
+            }
+
+            // Show a snackbar only if the activity is still active
+            if (!isFinishing && !isDestroyed) {
+                Snackbar.make(
+                    binding.root,
+                    getString(R.string.connection_restored),
+                    Snackbar.LENGTH_SHORT
+                ).show()
+            }
+
+            // Check scroll indicator after showing content
+            binding.nestedScrollView.post {
+                checkScrollIndicatorVisibility()
+            }
+
+            Log.d(TAG, "Network restored UI updated")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing network restored UI", e)
+        }
+    }
+
+    private fun setupRetryButton() {
+        val retryButton = findViewById<View>(R.id.buttonRetry)
+        retryButton.setOnClickListener {
+            if (isNetworkAvailable()) {
+                showNetworkRestored()
+                fetchEvents()
+            } else {
+                Snackbar.make(
+                    binding.root,
+                    getString(R.string.no_internet_connection),
+                    Snackbar.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 
     private fun setupScrollIndicator() {
@@ -91,15 +295,13 @@ class HomeActivity : AppCompatActivity() {
                 val isScrollable = childHeight > scrollViewHeight
                 val hasReachedBottom = scrollY >= childHeight - scrollViewHeight
 
-                binding.scrollIndicator.apply {
-                    if (isScrollable && !hasReachedBottom) {
-                        if (visibility != View.VISIBLE) {
-                            show()
-                        }
-                    } else {
-                        if (visibility == View.VISIBLE) {
-                            hide()
-                        }
+                if (isScrollable && !hasReachedBottom) {
+                    if (binding.scrollIndicator.visibility != View.VISIBLE) {
+                        binding.scrollIndicator.show()
+                    }
+                } else {
+                    if (binding.scrollIndicator.visibility == View.VISIBLE) {
+                        binding.scrollIndicator.hide()
                     }
                 }
             }
@@ -118,8 +320,10 @@ class HomeActivity : AppCompatActivity() {
         refreshJob = lifecycleScope.launch {
             while (isActive) {
                 try {
-                    setupUnreadNotificationCount()
-                    setupUnreadAnnouncementCount()
+                    if (isNetworkAvailable) {
+                        setupUnreadNotificationCount()
+                        setupUnreadAnnouncementCount()
+                    }
                     delay(REFRESH_INTERVAL)
                 } catch (e: Exception) {
                     logError("Error in periodic refresh", e)
@@ -150,7 +354,8 @@ class HomeActivity : AppCompatActivity() {
     private fun setupUnreadAnnouncementCount() {
         val token = TokenManager.getToken(this) ?: return
 
-        lifecycleScope.launch {
+        networkJob?.cancel()
+        networkJob = lifecycleScope.launch {
             try {
                 val response = RetrofitInstance.createApiService()
                     .getAnnouncementUnreadCount("Bearer $token")
@@ -370,34 +575,29 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun checkEventRequirements(event: EventResponse) {
-        val token = TokenManager.getToken(this)
-        if (token == null) {
-            showToast("Authentication error")
+        if (!isNetworkAvailable) {
+            showToast(getString(R.string.no_internet_connection))
             return
         }
 
-        lifecycleScope.launch {
-            try {
-                Log.d(TAG, "Checking requirements for event: ${event.id}")
-                val authToken = "Bearer $token"
-                val requirements = RetrofitInstance.createApiService()
-                    .getRequirementsByEventId(authToken, event.id)
+        // Always navigate to the requirements screen
+        navigateToRequirements(event)
 
-                val validRequirements = requirements.filter { it.event_id == event.id }
+        // Optionally log requirement check in the background
+        val token = TokenManager.getToken(this)
+        if (token != null) {
+            lifecycleScope.launch {
+                try {
+                    Log.d(TAG, "Checking requirements for event: ${event.id}")
+                    val authToken = "Bearer $token"
+                    val requirements = RetrofitInstance.createApiService()
+                        .getRequirementsByEventId(authToken, event.id)
 
-                if (validRequirements.isEmpty()) {
-                    Log.d(TAG, "No valid requirements found for event: ${event.id}")
-                    showToast("No requirements found for this event")
-                } else {
-                    Log.d(
-                        TAG,
-                        "Found ${validRequirements.size} valid requirements for event: ${event.id}"
-                    )
-                    navigateToRequirements(event)
+                    val validRequirements = requirements.filter { it.event_id == event.id }
+                    Log.d(TAG, "Found ${validRequirements.size} requirements for event: ${event.id}")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking requirements", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error checking requirements", e)
-                showToast("Error checking requirements")
             }
         }
     }
@@ -406,11 +606,17 @@ class HomeActivity : AppCompatActivity() {
         Intent(this@HomeActivity, RequirementActivity::class.java).also { intent ->
             intent.putExtra("event_id", event.id)
             intent.putExtra("event_title", event.title)
+            intent.putExtra("event_date", event.date)
             startActivity(intent)
         }
     }
 
     private fun fetchEvents() {
+        if (!isNetworkAvailable) {
+            showNetworkError()
+            return
+        }
+
         val token = TokenManager.getToken(this)
         if (token == null) {
             logError("Authentication error", null)
@@ -477,6 +683,12 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun handleLogout() {
+        if (!isNetworkAvailable) {
+            showToast(getString(R.string.no_internet_connection))
+            performLocalLogout() // Fallback to local logout if no network
+            return
+        }
+
         val token = TokenManager.getToken(this)
         if (token == null) {
             Log.w(TAG, "No token found, proceeding with local logout")
@@ -615,6 +827,15 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun loadProfilePicture(profileImageView: ShapeableImageView) {
+        if (!isNetworkAvailable) {
+            // Load default profile icon if no network
+            Glide.with(this@HomeActivity)
+                .load(R.drawable.ic_profile)
+                .circleCrop()
+                .into(profileImageView)
+            return
+        }
+
         val token = TokenManager.getToken(this) ?: return
 
         lifecycleScope.launch {
@@ -651,20 +872,33 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        fetchEvents()
-        setupUnreadNotificationCount()
-        setupUnreadAnnouncementCount()
-        refreshProfilePicture()
+        if (isNetworkAvailable) {
+            fetchEvents()
+            setupUnreadNotificationCount()
+            setupUnreadAnnouncementCount()
+            refreshProfilePicture()
+        }
         startPeriodicRefresh() // Restart periodic updates
     }
 
     override fun onPause() {
         super.onPause()
         refreshJob?.cancel() // Stop updates when activity is not visible
+        networkJob?.cancel()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         refreshJob?.cancel()
+        networkJob?.cancel()
+
+        // Unregister network callback
+        networkCallback?.let {
+            try {
+                connectivityManager.unregisterNetworkCallback(it)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error unregistering network callback", e)
+            }
+        }
     }
 }

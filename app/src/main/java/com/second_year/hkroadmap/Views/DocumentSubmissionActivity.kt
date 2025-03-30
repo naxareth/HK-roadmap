@@ -1,3 +1,4 @@
+
 package com.second_year.hkroadmap.Views
 
 import android.content.Context
@@ -19,6 +20,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
@@ -79,6 +81,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             setupScrollIndicator()
             setupDependencies()
             setupViews()
+            setupSwipeRefresh() // Add this line to setup SwipeRefreshLayout
             observeViewModel()
             loadDocuments()
             loadComments()
@@ -114,6 +117,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
             false
         }
     }
+
     private fun checkToken() {
         if (TokenManager.getToken(this) == null) {
             redirectToLogin()
@@ -139,6 +143,31 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         setupClickListeners()
     }
 
+    // Add this new method to setup SwipeRefreshLayout
+    private fun setupSwipeRefresh() {
+        binding.swipeRefreshLayout.apply {
+            setColorSchemeResources(
+                R.color.primary_green,
+                R.color.colorAccent,
+                R.color.colorPrimary
+            )
+
+            setOnRefreshListener {
+                Log.d(TAG, "SwipeRefresh triggered")
+                // Reset data loaded flag to force refresh
+                isDataLoaded = false
+                // Refresh both documents and comments
+                refreshData()
+            }
+        }
+    }
+
+    // Add this new method to handle data refresh
+    private fun refreshData() {
+        Log.d(TAG, "Refreshing data")
+        loadDocuments()
+        loadComments()
+    }
 
     private fun setupScrollIndicator() {
         binding.nestedScrollView.setOnScrollChangeListener(NestedScrollView.OnScrollChangeListener { v, _, scrollY, _, _ ->
@@ -206,6 +235,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                 rvComments.isVisible = false
                 commentProgressBar.isVisible = false  // Add this line
                 tvNoComments.text = "Invalid requirement or student ID"
+                swipeRefreshLayout.isRefreshing = false // Stop refresh animation if active
             }
             return
         }
@@ -669,20 +699,23 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                     documentAdapter.notifyDataSetChanged()
                 }
 
-                // Hide loading indicator
+                // Hide loading indicators
                 binding.progressBar.isVisible = false
+                binding.swipeRefreshLayout.isRefreshing = false // Stop refresh animation
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing documents", e)
                 showError(getString(R.string.error_processing_documents))
                 // Mark data as loaded even on error to prevent infinite refresh
                 isDataLoaded = true
                 binding.progressBar.isVisible = false
+                binding.swipeRefreshLayout.isRefreshing = false // Stop refresh animation on error
             }
         }
 
         // Loading state observer
         viewModel.isLoading.observe(this) { isLoading ->
             binding.progressBar.isVisible = isLoading
+            // Don't stop SwipeRefreshLayout here as we might still be loading comments
         }
 
         // Error message observer
@@ -693,6 +726,7 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                 // Mark data as loaded even on error to prevent infinite refresh
                 isDataLoaded = true
                 binding.progressBar.isVisible = false
+                binding.swipeRefreshLayout.isRefreshing = false // Stop refresh animation on error
             }
         }
 
@@ -732,11 +766,17 @@ class DocumentSubmissionActivity : AppCompatActivity() {
                 rvComments.post {
                     commentAdapter.notifyDataSetChanged()
                 }
+
+                // Only stop refresh animation if documents are also loaded
+                if (isDataLoaded) {
+                    swipeRefreshLayout.isRefreshing = false
+                }
             }
         }
 
         viewModel.isLoadingComments.observe(this) { isLoading ->
             binding.commentProgressBar.isVisible = isLoading
+            // Don't stop SwipeRefreshLayout here as we might still be loading documents
         }
 
         // Current document observer
@@ -844,3 +884,6 @@ class DocumentSubmissionActivity : AppCompatActivity() {
         finish()
     }
 }
+			
+			
+			

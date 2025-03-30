@@ -44,24 +44,20 @@ class NotificationAdapter(
             val date = dateFormat.parse(notification.created_at)
             timeText.text = date?.let { formatTimeAgo(it.time) }
 
-            // Determine if notification is read
-            val isRead = notification.isRead
+            // Determine if notification is read - force evaluation to boolean
+            val isRead = notification.read_notif == 1
 
             // Update read indicator visibility
             readIndicator.visibility = if (!isRead) View.VISIBLE else View.GONE
 
-            // Set opacity for all elements
-            val alpha = if (isRead) 0.7f else 1.0f
+            // Set a more noticeable opacity difference for read items
+            val alpha = if (isRead) 0.5f else 1.0f
 
-            // Apply alpha to the container views
+            // Apply alpha directly to the item view
             itemView.alpha = alpha
-            (itemView.parent as? View)?.alpha = alpha
 
-            // Apply alpha to individual elements
+            // Apply alpha to individual elements to ensure consistent appearance
             verticalIndicator.alpha = alpha
-
-            // Apply alpha to text elements directly
-            // This ensures the text opacity changes even if the parent view's alpha doesn't propagate
             messageText.alpha = alpha
             timeText.alpha = alpha
 

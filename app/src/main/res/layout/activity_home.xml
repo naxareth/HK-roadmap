@@ -124,24 +124,42 @@
 
     </LinearLayout>
 
-    <!-- Wrap RecyclerView in a NestedScrollView for scroll detection -->
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/nestedScrollView"
+    <!-- Network Error View -->
+    <include
+        android:id="@+id/networkErrorView"
+        layout="@layout/layout_network_error"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:clipToPadding="false"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/buttonContainer"
+        tools:visibility="gone" />
+
+    <!-- SwipeRefreshLayout wrapping the NestedScrollView -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/buttonContainer">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/eventsRecyclerView"
+        <!-- Wrap RecyclerView in a NestedScrollView for scroll detection -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/nestedScrollView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipToPadding="false"
-            android:padding="8dp"
-            android:nestedScrollingEnabled="false" />
+            android:layout_height="match_parent"
+            android:clipToPadding="false">
 
-    </androidx.core.widget.NestedScrollView>
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/eventsRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:padding="8dp"
+                android:nestedScrollingEnabled="false" />
+
+        </androidx.core.widget.NestedScrollView>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Scroll Indicator FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
