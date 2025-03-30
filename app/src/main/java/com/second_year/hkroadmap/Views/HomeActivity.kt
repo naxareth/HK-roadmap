@@ -24,6 +24,7 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.bumptech.glide.Glide
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.imageview.ShapeableImageView
@@ -88,6 +89,7 @@ class HomeActivity : AppCompatActivity() {
             setupUnreadNotificationCount()
             setupUnreadAnnouncementCount()
             setupRetryButton()
+            setupSwipeRefresh()
 
             // Initial check for network and fetch events
             if (isNetworkAvailable()) {
@@ -99,6 +101,48 @@ class HomeActivity : AppCompatActivity() {
             logError("Error in onCreate", e)
         }
         startPeriodicRefresh()
+    }
+
+    private fun setupSwipeRefresh() {
+        binding.swipeRefreshLayout.apply {
+            setColorSchemeResources(R.color.primary_green)
+            setProgressBackgroundColorSchemeResource(android.R.color.white)
+
+            setOnRefreshListener {
+                if (isNetworkAvailable()) {
+                    Log.d(TAG, "SwipeRefresh: Refreshing content")
+                    refreshAllContent()
+                } else {
+                    Log.d(TAG, "SwipeRefresh: No network available")
+                    isRefreshing = false
+                    showToast(getString(R.string.no_internet_connection))
+                }
+            }
+        }
+    }
+
+    private fun refreshAllContent() {
+        lifecycleScope.launch {
+            try {
+                // Refresh all data
+                fetchEvents()
+                setupUnreadNotificationCount()
+                setupUnreadAnnouncementCount()
+                refreshProfilePicture()
+
+                // Delay a bit to ensure the refresh indicator is visible for a moment
+                delay(500)
+
+                // Hide the refresh indicator
+                binding.swipeRefreshLayout.isRefreshing = false
+
+                Log.d(TAG, "Content refreshed successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing content", e)
+                binding.swipeRefreshLayout.isRefreshing = false
+                showToast("Error refreshing content")
+            }
+        }
     }
 
     private fun setupNetworkMonitoring() {
@@ -160,7 +204,7 @@ class HomeActivity : AppCompatActivity() {
             networkErrorView?.visibility = View.VISIBLE
 
             // Hide the scroll view and indicator
-            binding.nestedScrollView.visibility = View.GONE
+            binding.swipeRefreshLayout.visibility = View.GONE
             binding.scrollIndicator.visibility = View.GONE
 
             // Hide all interactive elements
@@ -192,7 +236,7 @@ class HomeActivity : AppCompatActivity() {
             networkErrorView?.visibility = View.GONE
 
             // Show the scroll view
-            binding.nestedScrollView.visibility = View.VISIBLE
+            binding.swipeRefreshLayout.visibility = View.VISIBLE
 
             // Restore all interactive elements
             binding.viewAllRequirementsBtn.visibility = View.VISIBLE
@@ -562,6 +606,7 @@ class HomeActivity : AppCompatActivity() {
         Intent(this@HomeActivity, RequirementActivity::class.java).also { intent ->
             intent.putExtra("event_id", event.id)
             intent.putExtra("event_title", event.title)
+            intent.putExtra("event_date", event.date)
             startActivity(intent)
         }
     }
